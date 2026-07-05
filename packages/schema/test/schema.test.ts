@@ -52,11 +52,14 @@ describe("dayUsageSchema", () => {
   });
 });
 
+const VALID_SOURCE_ID = "11111111-1111-4111-8111-111111111111";
+
 describe("submissionSchema", () => {
   it("正常な送信データを受理する", () => {
     const payload = {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
       days: [validDay()],
     };
     expect(() => submissionSchema.parse(payload)).not.toThrow();
@@ -66,6 +69,7 @@ describe("submissionSchema", () => {
     const payload = {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
       days: [validDay()],
       extra: "nope",
     };
@@ -73,13 +77,42 @@ describe("submissionSchema", () => {
   });
 
   it("daysが空配列の場合は拒否する(min 1)", () => {
-    const payload = { adapterVersion: "1.0.0", clientVersion: "0.1.0", days: [] };
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      days: [],
+    };
     expect(() => submissionSchema.parse(payload)).toThrow();
   });
 
   it("daysが上限(2000)を超える場合は拒否する", () => {
     const days = Array.from({ length: 2001 }, () => validDay());
-    const payload = { adapterVersion: "1.0.0", clientVersion: "0.1.0", days };
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      days,
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
+  });
+
+  it("sourceIdが不正なUUID形式の場合は拒否する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: "not-a-uuid",
+      days: [validDay()],
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
+  });
+
+  it("sourceIdが欠落している場合は拒否する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      days: [validDay()],
+    };
     expect(() => submissionSchema.parse(payload)).toThrow();
   });
 });

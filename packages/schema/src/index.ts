@@ -21,6 +21,8 @@ export const submissionSchema = z
   .object({
     adapterVersion: z.string(),
     clientVersion: z.string(),
+    /** ログ置き場(主要ログルート)単位の識別子。同期された複数PCからの二重計上対策 */
+    sourceId: z.string().uuid(),
     days: z.array(dayUsageSchema).min(1).max(2000),
   })
   .strict();

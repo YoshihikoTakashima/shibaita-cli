@@ -73,6 +73,7 @@ describe("submit --dry-run", () => {
     expect(payload).toMatchObject({
       adapterVersion: expect.any(String),
       clientVersion: expect.any(String),
+      sourceId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
       days: [
         {
           provider: "anthropic",
@@ -87,7 +88,7 @@ describe("submit --dry-run", () => {
         },
       ],
     });
-    expect(Object.keys(payload).sort()).toEqual(["adapterVersion", "clientVersion", "days"]);
+    expect(Object.keys(payload).sort()).toEqual(["adapterVersion", "clientVersion", "days", "sourceId"].sort());
     expect(Object.keys(payload.days[0]).sort()).toEqual(
       [
         "cacheReadTokens",

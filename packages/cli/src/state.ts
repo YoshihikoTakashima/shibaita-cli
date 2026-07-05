@@ -6,6 +6,11 @@ export interface ShibaitaState {
   deviceToken?: string;
   /** key: "date:model", value: 送信時点の合計しばき量 */
   lastSubmitted?: Record<string, number>;
+  /**
+   * 主要ログルート直下に `.shibaita-source-id` を作成/読み込みできない場合の
+   * フォールバック保存先(getOrCreateSourceIdのfallback引数から利用される)。
+   */
+  fallbackSourceId?: string;
 }
 
 function getStateFilePath(): string {

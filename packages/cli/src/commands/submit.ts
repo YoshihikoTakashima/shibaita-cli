@@ -1,11 +1,18 @@
 import { createInterface } from "node:readline/promises";
 import pc from "picocolors";
-import { aggregateUsage, discoverLogFiles, parseLogFiles, totalTokens } from "@shibaita/core";
-import type { DailyUsage } from "@shibaita/core";
+import {
+  aggregateUsage,
+  discoverLogFiles,
+  getOrCreateSourceId,
+  getPrimaryLogRoot,
+  parseLogFiles,
+  totalTokens,
+} from "@shibaita/core";
+import type { DailyUsage, SourceIdFallback } from "@shibaita/core";
 import { dayUsageSchema, submissionSchema } from "@shibaita/schema";
 import type { DayUsagePayload, SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
-import { readState, writeState } from "../state.js";
+import { readState, writeState, type ShibaitaState } from "../state.js";
 
 export interface SubmitOptions {
   dryRun: boolean;
@@ -55,7 +62,7 @@ function toDayUsagePayload(usage: DailyUsage): DayUsagePayload {
   };
 }
 
-function buildPayload(daily: DailyUsage[]): SubmissionPayload {
+function buildPayload(daily: DailyUsage[], sourceId: string): SubmissionPayload {
   const days = daily.map((d) => {
     const day = toDayUsagePayload(d);
     // 個別行もstrict検証しておく(allowlist方式の徹底)
@@ -65,7 +72,24 @@ function buildPayload(daily: DailyUsage[]): SubmissionPayload {
   return {
     adapterVersion: ADAPTER_VERSION,
     clientVersion: CLIENT_VERSION,
+    sourceId,
     days,
+  };
+}
+
+/**
+ * state.json をフォールバック先とした SourceIdFallback。
+ * 主要ログルート直下に `.shibaita-source-id` を作成できない環境(権限なし等)向け。
+ */
+function createStateFallback(state: ShibaitaState): SourceIdFallback {
+  return {
+    async read() {
+      return state.fallbackSourceId;
+    },
+    async write(sourceId: string) {
+      state.fallbackSourceId = sourceId;
+      await writeState(state);
+    },
   };
 }
 
@@ -103,7 +127,9 @@ export async function runSubmit(args: string[]): Promise<number> {
     return 0;
   }
 
-  const payload = buildPayload(daily);
+  const state = await readState();
+  const sourceId = await getOrCreateSourceId(getPrimaryLogRoot(), createStateFallback(state));
+  const payload = buildPayload(daily, sourceId);
 
   if (options.dryRun) {
     console.log(pc.bold("送信予定のデータ(dry-run、送信は行いません):"));
@@ -111,7 +137,6 @@ export async function runSubmit(args: string[]): Promise<number> {
     return 0;
   }
 
-  const state = await readState();
   if (!state.deviceToken) {
     console.error(pc.red("エラー: デバイスが未登録です。"));
     console.error("まずスマートフォンで shibaita.ai にログインし「PCと接続」でペアリングコードを発行してください。");
