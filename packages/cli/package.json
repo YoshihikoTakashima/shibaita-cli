@@ -1,7 +1,7 @@
 {
   "name": "shibaita",
   "version": "1.0.0",
-  "description": "Claude Code のローカル利用ログを解析し、「しばき量」(トークン使用量)を集計するCLI",
+  "description": "AIしばいたった。 - Show off how hard you work Claude Code. Local-only token usage aggregator (日本語/English README included)",
   "keywords": ["claude", "claude-code", "cli", "usage", "tokens"],
   "license": "MIT",
   "repository": {
@@ -20,6 +20,7 @@
   "files": [
     "dist",
     "README.md",
+    "README.en.md",
     "LICENSE",
     "PRIVACY.md"
   ],
@@ -27,7 +28,7 @@
     "node": ">=18"
   },
   "scripts": {
-    "sync-docs": "cp ../../README.md ../../LICENSE ../../PRIVACY.md .",
+    "sync-docs": "cp ../../README.md ../../README.en.md ../../LICENSE ../../PRIVACY.md .",
     "build": "npm run sync-docs && tsup",
     "check": "npm --prefix ../.. test && npm --prefix ../.. run typecheck",
     "prepack": "npm run check && npm run build"

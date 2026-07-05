@@ -1,3 +1,5 @@
+[English](./README.en.md) | 日本語
+
 # shibaita CLI
 
 Claude Code のローカル利用ログ(`~/.claude/projects/**/*.jsonl` 等)を解析し、
