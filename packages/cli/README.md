@@ -90,13 +90,9 @@ npx tsx packages/cli/src/index.ts inspect
 ## Acknowledgements / Prior Art
 
 本CLIのログ解析・集計ロジック(ストリーミング途中スナップショットのフィールド別maxマージに
-よるdedup手法など)は、[tokscale](https://github.com/tokscale/tokscale) および
+よるdedup手法など)は、[tokscale](https://github.com/junhoyeo/tokscale) および
 [ccusage](https://github.com/ryoppippi/ccusage) の設計・知見を参考にしています。
 コードの流用はなく、TypeScriptで新規実装しています。
-
-## ライセンス
-
-MIT License. See [LICENSE](./LICENSE).
 
 ### Why not a fork?
 
@@ -104,3 +100,7 @@ MIT License. See [LICENSE](./LICENSE).
 本CLIの中核価値は「小さく読めるコード」だからです。全コードを数千行のTSに収め、ネットワーク送信を1ファイルに限定する
 ことで、誰でも(AIに貼ってでも)安全性を検証できることを優先しました。dedup手法などのログ解析の知見はtokscale・ccusageの
 実装を参考にしています。感謝します。
+
+## ライセンス
+
+MIT License. See [LICENSE](./LICENSE).
