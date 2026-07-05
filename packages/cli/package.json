@@ -1,0 +1,42 @@
+{
+  "name": "shibaita",
+  "version": "1.0.0",
+  "description": "Claude Code のローカル利用ログを解析し、「しばき量」(トークン使用量)を集計するCLI",
+  "keywords": ["claude", "claude-code", "cli", "usage", "tokens"],
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/YoshihikoTakashima/shibaita-cli.git"
+  },
+  "homepage": "https://shibaita.ai",
+  "bugs": {
+    "url": "https://github.com/YoshihikoTakashima/shibaita-cli/issues"
+  },
+  "type": "module",
+  "bin": {
+    "shibaita": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE",
+    "PRIVACY.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "sync-docs": "cp ../../README.md ../../LICENSE ../../PRIVACY.md .",
+    "build": "npm run sync-docs && tsup"
+  },
+  "dependencies": {
+    "picocolors": "^1.0.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@shibaita/core": "*",
+    "@shibaita/schema": "*",
+    "tsup": "^8.5.1"
+  }
+}

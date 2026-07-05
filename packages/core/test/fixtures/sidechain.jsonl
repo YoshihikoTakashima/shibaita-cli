@@ -1,0 +1,1 @@
+{"type":"assistant","timestamp":"2026-06-06T10:00:00.000Z","requestId":"req-sidechain-1","isSidechain":true,"message":{"id":"msg-sidechain-1","model":"claude-haiku-4","usage":{"input_tokens":30,"output_tokens":15,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}

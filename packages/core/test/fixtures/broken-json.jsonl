@@ -1,0 +1,2 @@
+{"type":"assistant","timestamp":"2026-06-05T10:00:00.000Z","requestId":"req-broken-1","message":{"id":"msg-broken-1","model":"claude-opus-4","usage":{"input_tokens":100,"output_tokens":50
+{"type":"assistant","timestamp":"2026-06-05T11:00:00.000Z","requestId":"req-broken-2","message":{"id":"msg-broken-2","model":"claude-opus-4","usage":{"input_tokens":20,"output_tokens":10,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}

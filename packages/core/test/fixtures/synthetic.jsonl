@@ -1,0 +1,1 @@
+{"type":"assistant","timestamp":"2026-06-03T10:00:00.000Z","requestId":"req-synthetic-1","message":{"id":"msg-synthetic-1","model":"<synthetic>","usage":{"input_tokens":100,"output_tokens":50,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}
