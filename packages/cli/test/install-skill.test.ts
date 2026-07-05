@@ -1,9 +1,14 @@
+import { createRequire } from "node:module";
 import { describe, expect, it } from "vitest";
 import {
   buildSkillMarkdown,
   parseInstallSkillArgs,
   resolveCliInvocation,
+  resolvePublishedCliInvocation,
 } from "../src/commands/install-skill.js";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
 
 describe("install-skill", () => {
   it("--api-url を解釈する", () => {
@@ -16,6 +21,12 @@ describe("install-skill", () => {
   it("開発リポジトリからの実行では tsx 絶対パス起動を埋め込む", () => {
     const cli = resolveCliInvocation();
     expect(cli).toMatch(/^npx tsx .*index\.ts$/);
+  });
+
+  it("npm公開パッケージ実行時は package.json の version を固定で埋め込む(手書き禁止)", () => {
+    expect(resolvePublishedCliInvocation()).toBe(`npx -y shibaita@${pkg.version}`);
+    // 任意バージョンを渡した場合もそのまま反映されること(バージョン注入経路の確認)
+    expect(resolvePublishedCliInvocation("9.9.9")).toBe("npx -y shibaita@9.9.9");
   });
 
   it("スキル文面: frontmatter・送信前確認・禁止事項を含む", () => {

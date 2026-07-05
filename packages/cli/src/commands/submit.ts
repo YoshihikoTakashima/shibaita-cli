@@ -13,6 +13,7 @@ import { dayUsageSchema, submissionSchema } from "@shibaita/schema";
 import type { DayUsagePayload, SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
 import { readState, writeState, type ShibaitaState } from "../state.js";
+import { getPackageVersion } from "../version.js";
 
 export interface SubmitOptions {
   dryRun: boolean;
@@ -21,8 +22,11 @@ export interface SubmitOptions {
 }
 
 const DEFAULT_DAYS = 90;
+// ADAPTER_VERSION: 送信ペイロードスキーマ(packages/schema)自体のバージョン。
+// パッケージのバージョン(CLIENT_VERSION)とは別概念のため固定値のまま管理する。
 const ADAPTER_VERSION = "1.0.0";
-const CLIENT_VERSION = "0.1.0";
+// CLIENT_VERSION: packages/cli/package.json の "version" を唯一のソースとする。
+const CLIENT_VERSION = getPackageVersion();
 
 export function parseSubmitArgs(args: string[]): SubmitOptions {
   let dryRun = false;
@@ -145,7 +149,13 @@ export async function runSubmit(args: string[]): Promise<number> {
     return 1;
   }
 
-  const apiUrl = getApiUrl();
+  let apiUrl: string;
+  try {
+    apiUrl = getApiUrl();
+  } catch (error) {
+    console.error(pc.red(`エラー: ${(error as Error).message}`));
+    return 1;
+  }
 
   console.log(pc.bold("送信先:"), apiUrl);
   console.log(pc.bold("対象期間:"), `直近${options.days}日`);

@@ -1,8 +1,12 @@
+import { createRequire } from "node:module";
 import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runSubmit } from "../src/commands/submit.js";
+
+const require = createRequire(import.meta.url);
+const pkg = require("../package.json") as { version: string };
 
 let tempDir: string;
 let originalConfigDir: string | undefined;
@@ -89,6 +93,8 @@ describe("submit --dry-run", () => {
       ],
     });
     expect(Object.keys(payload).sort()).toEqual(["adapterVersion", "clientVersion", "days", "sourceId"].sort());
+    // clientVersion は packages/cli/package.json の version が唯一のソース(手書き禁止)
+    expect(payload.clientVersion).toBe(pkg.version);
     expect(Object.keys(payload.days[0]).sort()).toEqual(
       [
         "cacheReadTokens",

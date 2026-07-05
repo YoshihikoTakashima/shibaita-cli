@@ -28,7 +28,9 @@
   },
   "scripts": {
     "sync-docs": "cp ../../README.md ../../LICENSE ../../PRIVACY.md .",
-    "build": "npm run sync-docs && tsup"
+    "build": "npm run sync-docs && tsup",
+    "check": "npm --prefix ../.. test && npm --prefix ../.. run typecheck",
+    "prepack": "npm run check && npm run build"
   },
   "dependencies": {
     "picocolors": "^1.0.0",

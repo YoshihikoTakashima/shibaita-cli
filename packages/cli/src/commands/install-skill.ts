@@ -3,6 +3,7 @@ import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import pc from "picocolors";
+import { getPackageVersion } from "../version.js";
 
 /**
  * `shibaita install-skill` : Claude Code用スキルを ~/.claude/skills/shibaita/SKILL.md に書き込む。
@@ -29,9 +30,19 @@ export function parseInstallSkillArgs(args: string[]): InstallSkillOptions {
 }
 
 /**
+ * npmパッケージとして実行されている場合の起動コマンド。
+ * `packages/cli/package.json` の version を唯一のソースとしてバージョンを固定する
+ * (npx は既定でキャッシュ済みバージョンを再利用しうるため、明示指定で再現性を保つ)。
+ * 将来のCLI更新を反映したい場合は、ユーザーが `install-skill` を再実行する運用とする。
+ */
+export function resolvePublishedCliInvocation(version: string = getPackageVersion()): string {
+  return `npx -y shibaita@${version}`;
+}
+
+/**
  * このCLIの起動コマンドを決める。
  * - 開発リポジトリからtsx実行されている場合: 絶対パス付きの `npx tsx <path>` を埋め込む
- * - npmパッケージとして実行されている場合: `npx -y shibaita`
+ * - npmパッケージとして実行されている場合: `npx -y shibaita@<version>`
  */
 export function resolveCliInvocation(): string {
   const selfPath = fileURLToPath(import.meta.url);
@@ -40,7 +51,7 @@ export function resolveCliInvocation(): string {
     const entry = resolve(dirname(selfPath), "..", "index.ts");
     return `npx tsx ${entry}`;
   }
-  return "npx -y shibaita";
+  return resolvePublishedCliInvocation();
 }
 
 export function buildSkillMarkdown(cli: string, apiUrl?: string): string {
@@ -76,6 +87,10 @@ description: Claude Codeのしばき量(トークン利用量)をローカル集
 - ユーザーの明示的な依頼・同意なしに submit を実行すること(スキルが呼ばれただけでは同意ではない)
 - 会話ログ・ファイルパス・コードの内容を送信・表示に含めること(CLIは日別の集計数値のみを扱う)
 - 「正確な利用量」「公式」などと表現すること(ローカルログ由来の参考値である)
+
+## 補足
+
+- 上記コマンドのCLIバージョンはインストール時点のもので固定されています。新しいバージョンを使うには \`npx shibaita install-skill\` を再実行してください。
 `;
 }
 

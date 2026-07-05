@@ -11,7 +11,13 @@ export async function runPair(args: string[]): Promise<number> {
     return 1;
   }
 
-  const apiUrl = getApiUrl();
+  let apiUrl: string;
+  try {
+    apiUrl = getApiUrl();
+  } catch (error) {
+    console.error(pc.red(`エラー: ${(error as Error).message}`));
+    return 1;
+  }
 
   try {
     const { deviceToken } = await claimPairing(code, apiUrl);
