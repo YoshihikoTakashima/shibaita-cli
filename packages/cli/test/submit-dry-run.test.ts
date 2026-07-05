@@ -78,6 +78,7 @@ describe("submit --dry-run", () => {
       adapterVersion: expect.any(String),
       clientVersion: expect.any(String),
       sourceId: expect.stringMatching(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i),
+      os: expect.stringMatching(/^(macos|windows|linux|other)$/),
       days: [
         {
           provider: "anthropic",
@@ -92,7 +93,9 @@ describe("submit --dry-run", () => {
         },
       ],
     });
-    expect(Object.keys(payload).sort()).toEqual(["adapterVersion", "clientVersion", "days", "sourceId"].sort());
+    expect(Object.keys(payload).sort()).toEqual(
+      ["adapterVersion", "clientVersion", "days", "sourceId", "os"].sort()
+    );
     // clientVersion は packages/cli/package.json の version が唯一のソース(手書き禁止)
     expect(payload.clientVersion).toBe(pkg.version);
     expect(Object.keys(payload.days[0]).sort()).toEqual(

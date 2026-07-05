@@ -50,6 +50,16 @@ export function parseSubmitArgs(args: string[]): SubmitOptions {
   return { dryRun, yes, days };
 }
 
+export type OsType = "macos" | "windows" | "linux" | "other";
+
+/** process.platform から送信用OS種別へマップする。ホスト名・マシン名は含めない。 */
+export function detectOs(platform: NodeJS.Platform = process.platform): OsType {
+  if (platform === "darwin") return "macos";
+  if (platform === "win32") return "windows";
+  if (platform === "linux") return "linux";
+  return "other";
+}
+
 /** allowlist方式: DailyUsageから明示的にフィールドを1つずつ写してpayload要素を構築する */
 function toDayUsagePayload(usage: DailyUsage): DayUsagePayload {
   return {
@@ -77,6 +87,7 @@ function buildPayload(daily: DailyUsage[], sourceId: string): SubmissionPayload 
     adapterVersion: ADAPTER_VERSION,
     clientVersion: CLIENT_VERSION,
     sourceId,
+    os: detectOs(),
     days,
   };
 }

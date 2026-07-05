@@ -69,6 +69,8 @@ prompt text, output text, source code, file paths, environment variables, or cre
 When you run `submit`, we create a single identifier file (`.shibaita-source-id`,
 containing only a random UUID) in your log folder. This exists solely to prevent
 double-counting when your logs are synced across multiple machines.
+We also send the source OS type (one of `macos`/`windows`/`linux`/`other` only —
+never the hostname or machine name) for the per-device breakdown shown on your page.
 
 ## Monorepo layout
 

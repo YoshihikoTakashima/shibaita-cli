@@ -60,9 +60,44 @@ describe("submissionSchema", () => {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
       sourceId: VALID_SOURCE_ID,
+      os: "macos",
       days: [validDay()],
     };
     expect(() => submissionSchema.parse(payload)).not.toThrow();
+  });
+
+  it("osの4値(macos/windows/linux/other)すべてを受理する", () => {
+    for (const os of ["macos", "windows", "linux", "other"] as const) {
+      const payload = {
+        adapterVersion: "1.0.0",
+        clientVersion: "0.1.0",
+        sourceId: VALID_SOURCE_ID,
+        os,
+        days: [validDay()],
+      };
+      expect(() => submissionSchema.parse(payload)).not.toThrow();
+    }
+  });
+
+  it("osが未知の値の場合は拒否する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "freebsd",
+      days: [validDay()],
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
+  });
+
+  it("osが欠落している場合は拒否する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      days: [validDay()],
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
   });
 
   it("未知キーを含む場合は拒否する(strict)", () => {
@@ -70,6 +105,7 @@ describe("submissionSchema", () => {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
       sourceId: VALID_SOURCE_ID,
+      os: "macos",
       days: [validDay()],
       extra: "nope",
     };
@@ -81,6 +117,7 @@ describe("submissionSchema", () => {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
       sourceId: VALID_SOURCE_ID,
+      os: "macos",
       days: [],
     };
     expect(() => submissionSchema.parse(payload)).toThrow();
@@ -92,6 +129,7 @@ describe("submissionSchema", () => {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
       sourceId: VALID_SOURCE_ID,
+      os: "macos",
       days,
     };
     expect(() => submissionSchema.parse(payload)).toThrow();
@@ -102,6 +140,7 @@ describe("submissionSchema", () => {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
       sourceId: "not-a-uuid",
+      os: "macos",
       days: [validDay()],
     };
     expect(() => submissionSchema.parse(payload)).toThrow();
@@ -111,6 +150,7 @@ describe("submissionSchema", () => {
     const payload = {
       adapterVersion: "1.0.0",
       clientVersion: "0.1.0",
+      os: "macos",
       days: [validDay()],
     };
     expect(() => submissionSchema.parse(payload)).toThrow();

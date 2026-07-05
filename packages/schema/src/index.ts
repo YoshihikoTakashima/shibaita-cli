@@ -23,6 +23,8 @@ export const submissionSchema = z
     clientVersion: z.string(),
     /** ログ置き場(主要ログルート)単位の識別子。同期された複数PCからの二重計上対策 */
     sourceId: z.string().uuid(),
+    /** 送信元OS種別。端末別内訳の表示に利用。ホスト名・マシン名等は含まない */
+    os: z.enum(["macos", "windows", "linux", "other"]),
     days: z.array(dayUsageSchema).min(1).max(2000),
   })
   .strict();

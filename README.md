@@ -66,6 +66,8 @@ npx shibaita install-skill
 
 `submit` 実行時、ログフォルダに識別用IDファイル(`.shibaita-source-id`、ランダムUUIDの
 み)を1つ作成します。複数PCでログを同期している場合の二重計上を防ぐためです。
+また、送信元の判別のためOS種別(`macos`/`windows`/`linux`/`other`の4値のみ。ホスト名・
+マシン名は送りません)を送信します。
 
 ## モノレポ構成
 
