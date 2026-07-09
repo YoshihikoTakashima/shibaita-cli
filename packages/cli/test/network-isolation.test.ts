@@ -59,6 +59,21 @@ describe("ネットワーク遮断: ソースコード走査", () => {
 
     expect(fetchUsers).toEqual([join(cliSrcDir, "api.ts")]);
   });
+
+  it("cli パッケージ内で child_process を使用しているのは browser-open.ts のみ", async () => {
+    const cliSrcDir = join(__dirname, "..", "src");
+    const files = await listTsFiles(cliSrcDir);
+    const childProcessUsers: string[] = [];
+
+    for (const file of files) {
+      const content = await readFile(file, "utf-8");
+      if (/child_process/.test(content)) {
+        childProcessUsers.push(file);
+      }
+    }
+
+    expect(childProcessUsers).toEqual([join(cliSrcDir, "browser-open.ts")]);
+  });
 });
 
 describe("ネットワーク遮断: inspectコマンドの実行パス", () => {

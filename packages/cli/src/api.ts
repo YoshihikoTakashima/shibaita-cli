@@ -78,6 +78,81 @@ export async function claimPairing(code: string, apiUrl: string): Promise<PairCl
   return data;
 }
 
+export interface DeviceStartResponse {
+  deviceCode: string;
+  userCode: string;
+  verificationUrl: string;
+}
+
+/** POST {api}/api/v1/device/start -> {deviceCode, userCode, verificationUrl} */
+export async function startDeviceFlow(apiUrl: string): Promise<DeviceStartResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/api/v1/device/start`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+  } catch (error) {
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+  }
+
+  if (!response.ok) {
+    throw new ApiError(`連携の開始に失敗しました (HTTP ${response.status})`, response.status);
+  }
+
+  const data = (await response.json()) as Partial<DeviceStartResponse> | null;
+  if (
+    !data ||
+    typeof data.deviceCode !== "string" ||
+    typeof data.userCode !== "string" ||
+    typeof data.verificationUrl !== "string"
+  ) {
+    throw new ApiError("サーバーからの応答が不正です");
+  }
+  return data as DeviceStartResponse;
+}
+
+export type DevicePollStatus = "pending" | "approved" | "expired";
+
+export interface DevicePollResponse {
+  status: DevicePollStatus;
+  deviceToken?: string;
+}
+
+/**
+ * POST {api}/api/v1/device/poll {deviceCode} -> {status, deviceToken?}
+ * サーバは200(pending/approved)と410(expired)のいずれも正常系の応答として返す。
+ */
+export async function pollDeviceFlow(
+  deviceCode: string,
+  apiUrl: string,
+): Promise<DevicePollResponse> {
+  let response: Response;
+  try {
+    response = await fetch(`${apiUrl}/api/v1/device/poll`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ deviceCode }),
+    });
+  } catch (error) {
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+  }
+
+  if (response.status !== 200 && response.status !== 410) {
+    throw new ApiError(`ポーリングに失敗しました (HTTP ${response.status})`, response.status);
+  }
+
+  const data = (await response.json()) as Partial<DevicePollResponse> | null;
+  if (data?.status !== "pending" && data?.status !== "approved" && data?.status !== "expired") {
+    throw new ApiError("サーバーからの応答が不正です");
+  }
+  if (data.status === "approved" && typeof data.deviceToken !== "string") {
+    throw new ApiError("サーバーからの応答が不正です");
+  }
+
+  return data as DevicePollResponse;
+}
+
 export interface SubmitResponse {
   accepted: number;
   rejected: unknown[];

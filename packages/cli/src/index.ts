@@ -2,6 +2,7 @@
 import pc from "picocolors";
 import { aggregateUsage, discoverLogFiles, parseLogFiles, totalTokens } from "@shibaita/core";
 import { runInspect } from "./commands/inspect.js";
+import { runLogin } from "./commands/login.js";
 import { runPair } from "./commands/pair.js";
 import { runSubmit } from "./commands/submit.js";
 import { runLogout } from "./commands/logout.js";
@@ -42,7 +43,8 @@ function printHelp(): void {
 使い方:
   npx shibaita                今月の合計+直近7日のバー表示
   npx shibaita inspect        日別・モデル別の詳細集計を表示 [--days N=30]
-  npx shibaita pair <code>    ペアリングコードでデバイスを登録
+  npx shibaita login          ブラウザでPCを連携(初回はこちら)
+  npx shibaita pair <code>    スマホで発行したペアリングコードでデバイスを登録
   npx shibaita submit         集計結果を送信 [--dry-run] [--yes] [--days N=90]
   npx shibaita logout         ローカルの登録情報を削除
   npx shibaita install-skill  Claude Code用スキルをインストール [--api-url URL]
@@ -69,6 +71,9 @@ async function main(): Promise<void> {
         break;
       case "inspect":
         await runInspect(rest);
+        break;
+      case "login":
+        exitCode = await runLogin();
         break;
       case "pair":
         exitCode = await runPair(rest);

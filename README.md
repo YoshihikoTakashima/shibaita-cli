@@ -21,8 +21,8 @@ npx shibaita
 npx shibaita inspect
 npx shibaita inspect --days 60
 
-# スマートフォンで発行したペアリングコードでデバイス登録
-npx shibaita pair XXXXXXXX
+# 初回はこちら: ブラウザが自動で開くので、表示されたコードで承認するだけでPCを連携できる
+npx shibaita login
 
 # 送信予定のJSONを確認するだけ(通信なし)
 npx shibaita submit --dry-run
@@ -37,6 +37,12 @@ npx shibaita logout
 
 # Claude Code用スキルをインストール(以後Claude Code内から「/shibaita」で操作可能)
 npx shibaita install-skill
+```
+
+スマートフォンで発行したペアリングコードを使う場合(スマホ起点で `/pair` からコードを発行した場合)は、代わりに以下を実行できます。
+
+```bash
+npx shibaita pair XXXXXXXX
 ```
 
 ### Claude Codeから使う

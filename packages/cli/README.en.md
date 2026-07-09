@@ -21,8 +21,8 @@ npx shibaita
 npx shibaita inspect
 npx shibaita inspect --days 60
 
-# Register this device using a pairing code issued on your phone
-npx shibaita pair XXXXXXXX
+# Start here: opens your browser automatically; just approve the code shown to link this PC
+npx shibaita login
 
 # Preview the JSON that would be submitted, without sending anything (no network access)
 npx shibaita submit --dry-run
@@ -37,6 +37,12 @@ npx shibaita logout
 
 # Install the Claude Code skill (lets you drive this CLI from inside Claude Code via "/shibaita")
 npx shibaita install-skill
+```
+
+If you already have a pairing code issued from your phone (via `/pair`), you can use this instead:
+
+```bash
+npx shibaita pair XXXXXXXX
 ```
 
 ### Using it from Claude Code

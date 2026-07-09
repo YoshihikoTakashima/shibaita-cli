@@ -175,9 +175,8 @@ export async function runSubmit(args: string[]): Promise<number> {
 
   if (!state.deviceToken) {
     console.error(pc.red("エラー: デバイスが未登録です。"));
-    console.error("まずスマートフォンで shibaita.ai にログインし「PCと接続」でペアリングコードを発行してください。");
-    console.error("その後、以下を実行してください:");
-    console.error("  npx shibaita pair <code>");
+    console.error("npx shibaita login を実行してブラウザで連携してください。");
+    console.error("(スマホで発行したコードがある場合は npx shibaita pair <code>)");
     return 1;
   }
 

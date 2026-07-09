@@ -35,15 +35,16 @@ describe("install-skill", () => {
     expect(md).toContain("必ずユーザーに確認する");
     expect(md).toContain("同意なしに submit を実行すること");
     expect(md).toContain("npx -y shibaita inspect");
-    // api-url未指定時はenvプレフィックスなし・本番URL案内
+    // api-url未指定時はenvプレフィックスなし
     expect(md).not.toContain("SHIBAITA_API_URL=");
-    expect(md).toContain("https://shibaita.ai/pair");
+    // 未ペアリング時は login コマンド主体で案内する(ブラウザ経由のdevice flow)
+    expect(md).toContain("npx -y shibaita login");
   });
 
-  it("api-url指定時はenvプレフィックスとローカルURL案内を埋め込む", () => {
+  it("api-url指定時はenvプレフィックスを埋め込む", () => {
     const md = buildSkillMarkdown("npx tsx /x/index.ts", "http://localhost:8787");
     expect(md).toContain("SHIBAITA_API_URL=http://localhost:8787 npx tsx /x/index.ts inspect");
-    expect(md).toContain("http://localhost:8787/pair");
+    expect(md).toContain("SHIBAITA_API_URL=http://localhost:8787 npx tsx /x/index.ts login");
   });
 
   it("禁止表現を助長する文言がない(参考値であることを明記)", () => {

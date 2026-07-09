@@ -70,7 +70,8 @@ description: Claude Codeのしばき量(トークン利用量)をローカル集
 - ローカル集計の表示(通信なし): \`${envPrefix}${cli} inspect --days 30\`
 - 送信内容のプレビュー(通信なし): \`${envPrefix}${cli} submit --dry-run\`
 - 送信(必ずユーザー同意の後): \`${envPrefix}${cli} submit --yes\`
-- ペアリング(コードはユーザーがブラウザで取得): \`${envPrefix}${cli} pair <code>\`
+- ブラウザ連携(未ペアリング時。ブラウザが自動で開く): \`${envPrefix}${cli} login\`
+- ペアリング(スマホでコードを発行した場合): \`${envPrefix}${cli} pair <code>\`
 
 ## 手順
 
@@ -79,7 +80,7 @@ description: Claude Codeのしばき量(トークン利用量)をローカル集
    a. まず inspect または submit --dry-run で日別サマリを見せる
    b. 送信先とあわせて「この集計値を送信しますか?」と**必ずユーザーに確認する**
    c. ユーザーが明示的に同意した場合のみ \`submit --yes\` を実行する
-3. 未ペアリングのエラーが出たら: ブラウザで ${apiUrl ?? "https://shibaita.ai"}/pair を開いてコードを発行し、\`pair <code>\` を実行するよう案内する。
+3. 未ペアリングのエラーが出たら: \`${envPrefix}${cli} login\` を実行するよう案内する(ブラウザが自動で開き、表示されたコードで承認するだけで連携できる。スマホで発行したコードがある場合は \`pair <code>\` も使える)。
 4. 送信成功後はプロフィールURLを伝える。X投稿はユーザー自身が行う(intentリンクはマイページにある)。
 
 ## 禁止事項
