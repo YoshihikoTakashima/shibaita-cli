@@ -40,12 +40,12 @@ function printHelp(): void {
   console.log(`shibaita - Claude Codeの利用量をローカルで集計するCLI
 
 使い方:
-  shibaita                今月の合計+直近7日のバー表示
-  shibaita inspect        日別・モデル別の詳細集計を表示 [--days N=30]
-  shibaita pair <code>    ペアリングコードでデバイスを登録
-  shibaita submit         集計結果を送信 [--dry-run] [--yes] [--days N=90]
-  shibaita logout         ローカルの登録情報を削除
-  shibaita install-skill  Claude Code用スキルをインストール [--api-url URL]
+  npx shibaita                今月の合計+直近7日のバー表示
+  npx shibaita inspect        日別・モデル別の詳細集計を表示 [--days N=30]
+  npx shibaita pair <code>    ペアリングコードでデバイスを登録
+  npx shibaita submit         集計結果を送信 [--dry-run] [--yes] [--days N=90]
+  npx shibaita logout         ローカルの登録情報を削除
+  npx shibaita install-skill  Claude Code用スキルをインストール [--api-url URL]
 `);
 }
 
