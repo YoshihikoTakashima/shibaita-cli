@@ -2,7 +2,13 @@
   "name": "shibaita",
   "version": "1.0.0",
   "description": "AIしばいたった。 - Show off how hard you work Claude Code. Local-only token usage aggregator (日本語/English README included)",
-  "keywords": ["claude", "claude-code", "cli", "usage", "tokens"],
+  "keywords": [
+    "claude",
+    "claude-code",
+    "cli",
+    "usage",
+    "tokens"
+  ],
   "license": "MIT",
   "repository": {
     "type": "git",
@@ -14,7 +20,7 @@
   },
   "type": "module",
   "bin": {
-    "shibaita": "./dist/index.js"
+    "shibaita": "dist/index.js"
   },
   "main": "./dist/index.js",
   "files": [
