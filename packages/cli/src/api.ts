@@ -50,21 +50,56 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * sourceId排他バインディング(D-24)により409 source_boundを受けた場合の専用エラー。
+ * サーバのmessageフィールドではなく、切り替え手順まで案内するCLI固有の文言を使う。
+ */
+export const SOURCE_BOUND_MESSAGE =
+  "このPC(ログフォルダ)は既に別のアカウントに連携されています。切り替えるには、旧アカウントでログインして設定画面から端末の連携を解除するか、旧アカウントを退会してください。";
+
+export class SourceBoundError extends ApiError {
+  constructor() {
+    super(SOURCE_BOUND_MESSAGE, 409);
+    this.name = "SourceBoundError";
+  }
+}
+
+/** 409応答のボディが source_bound エラーかどうかを判定し、該当すればSourceBoundErrorを投げる。 */
+async function throwIfSourceBound(response: Response): Promise<void> {
+  let body: unknown;
+  try {
+    body = await response.json();
+  } catch {
+    return;
+  }
+  if (body && typeof body === "object" && (body as { error?: unknown }).error === "source_bound") {
+    throw new SourceBoundError();
+  }
+}
+
 export interface PairClaimResponse {
   deviceToken: string;
 }
 
-/** POST {api}/api/v1/pairing/claim {code} -> {deviceToken} */
-export async function claimPairing(code: string, apiUrl: string): Promise<PairClaimResponse> {
+/** POST {api}/api/v1/pairing/claim {code, sourceId?} -> {deviceToken} */
+export async function claimPairing(
+  code: string,
+  apiUrl: string,
+  sourceId?: string,
+): Promise<PairClaimResponse> {
   let response: Response;
   try {
     response = await fetch(`${apiUrl}/api/v1/pairing/claim`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ code }),
+      body: JSON.stringify(sourceId ? { code, sourceId } : { code }),
     });
   } catch (error) {
     throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
+  }
+
+  if (response.status === 409) {
+    await throwIfSourceBound(response);
   }
 
   if (!response.ok) {
@@ -120,22 +155,28 @@ export interface DevicePollResponse {
 }
 
 /**
- * POST {api}/api/v1/device/poll {deviceCode} -> {status, deviceToken?}
+ * POST {api}/api/v1/device/poll {deviceCode, sourceId?} -> {status, deviceToken?}
  * サーバは200(pending/approved)と410(expired)のいずれも正常系の応答として返す。
+ * 409はsourceId排他バインディング(D-24)による拒否。
  */
 export async function pollDeviceFlow(
   deviceCode: string,
   apiUrl: string,
+  sourceId?: string,
 ): Promise<DevicePollResponse> {
   let response: Response;
   try {
     response = await fetch(`${apiUrl}/api/v1/device/poll`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ deviceCode }),
+      body: JSON.stringify(sourceId ? { deviceCode, sourceId } : { deviceCode }),
     });
   } catch (error) {
     throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
+  }
+
+  if (response.status === 409) {
+    await throwIfSourceBound(response);
   }
 
   if (response.status !== 200 && response.status !== 410) {
@@ -177,6 +218,10 @@ export async function submitUsage(
     });
   } catch (error) {
     throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
+  }
+
+  if (response.status === 409) {
+    await throwIfSourceBound(response);
   }
 
   if (!response.ok) {

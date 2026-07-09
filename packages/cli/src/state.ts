@@ -1,6 +1,7 @@
 import { mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { homedir } from "node:os";
 import { dirname, join } from "node:path";
+import type { SourceIdFallback } from "@shibaita/core";
 
 export interface ShibaitaState {
   deviceToken?: string;
@@ -44,4 +45,21 @@ export async function deleteState(): Promise<void> {
   } catch {
     // 存在しない場合は無視
   }
+}
+
+/**
+ * state.json をフォールバック先とした SourceIdFallback。
+ * 主要ログルート直下に `.shibaita-source-id` を作成できない環境(権限なし等)向け。
+ * pair/login/submit の各コマンドから共通で利用する(D-24でpair/loginにも展開)。
+ */
+export function createStateFallback(state: ShibaitaState): SourceIdFallback {
+  return {
+    async read() {
+      return state.fallbackSourceId;
+    },
+    async write(sourceId: string) {
+      state.fallbackSourceId = sourceId;
+      await writeState(state);
+    },
+  };
 }

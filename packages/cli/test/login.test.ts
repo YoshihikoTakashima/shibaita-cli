@@ -5,6 +5,18 @@ const pollDeviceFlowMock = vi.fn();
 const openInBrowserMock = vi.fn();
 const readStateMock = vi.fn();
 const writeStateMock = vi.fn();
+const getOrCreateSourceIdMock = vi.fn();
+const getPrimaryLogRootMock = vi.fn();
+
+const FAKE_SOURCE_ID = "11111111-1111-4111-8111-111111111111";
+
+// 実ファイルシステム(~/.claude等)に触れないよう、sourceId取得はモックで固定する。
+// (afterEachのvi.restoreAllMocks()はvi.mockファクトリ内のvi.fn()もリセットするため、
+//  トップレベルの参照を経由してbeforeEachで都度再設定する。)
+vi.mock("@shibaita/core", () => ({
+  getOrCreateSourceId: (...args: unknown[]) => getOrCreateSourceIdMock(...args),
+  getPrimaryLogRoot: (...args: unknown[]) => getPrimaryLogRootMock(...args),
+}));
 
 vi.mock("../src/api.js", async () => {
   const actual = await vi.importActual<typeof import("../src/api.js")>("../src/api.js");
@@ -23,6 +35,15 @@ vi.mock("../src/browser-open.js", () => ({
 vi.mock("../src/state.js", () => ({
   readState: (...args: unknown[]) => readStateMock(...args),
   writeState: (...args: unknown[]) => writeStateMock(...args),
+  createStateFallback: (state: { fallbackSourceId?: string }) => ({
+    async read() {
+      return state.fallbackSourceId;
+    },
+    async write(sourceId: string) {
+      state.fallbackSourceId = sourceId;
+      await writeStateMock(state);
+    },
+  }),
 }));
 
 const { runLogin } = await import("../src/commands/login.js");
@@ -36,6 +57,8 @@ describe("runLogin", () => {
     openInBrowserMock.mockReset();
     readStateMock.mockReset().mockResolvedValue({});
     writeStateMock.mockReset().mockResolvedValue(undefined);
+    getOrCreateSourceIdMock.mockReset().mockResolvedValue(FAKE_SOURCE_ID);
+    getPrimaryLogRootMock.mockReset().mockReturnValue("/tmp/fake-claude-root");
     vi.spyOn(console, "log").mockImplementation(() => {});
     vi.spyOn(console, "error").mockImplementation(() => {});
   });
@@ -62,6 +85,12 @@ describe("runLogin", () => {
     expect(openInBrowserMock).toHaveBeenCalledWith("https://shibaita.ai/link?c=ABCD1234");
     expect(writeStateMock).toHaveBeenCalledWith(
       expect.objectContaining({ deviceToken: "tok-abc" }),
+    );
+    // D-24: sourceId排他バインディング用に、pollリクエストへsourceIdを含める。
+    expect(pollDeviceFlowMock).toHaveBeenCalledWith(
+      "d".repeat(64),
+      "https://shibaita.ai",
+      FAKE_SOURCE_ID,
     );
   });
 

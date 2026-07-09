@@ -1,7 +1,8 @@
 import pc from "picocolors";
+import { getOrCreateSourceId, getPrimaryLogRoot } from "@shibaita/core";
 import { ApiError, getApiUrl, pollDeviceFlow, startDeviceFlow } from "../api.js";
 import { openInBrowser } from "../browser-open.js";
-import { readState, writeState } from "../state.js";
+import { createStateFallback, readState, writeState } from "../state.js";
 
 const POLL_INTERVAL_MS = 3000;
 const MAX_POLL_MS = 15 * 60 * 1000;
@@ -37,6 +38,10 @@ export async function runLogin(): Promise<number> {
     return 1;
   }
 
+  const state = await readState();
+  // D-24: sourceId排他バインディング用に、承認前に主要ログルートの識別子を取得しておく。
+  const sourceId = await getOrCreateSourceId(getPrimaryLogRoot(), createStateFallback(state));
+
   // サーバ応答のuserCodeを形式検証してからURLに使う。
   // Windowsの `cmd /c start` はcmd自身が引数内の`&`等を解釈しうるため、
   // 悪性サーバがuserCodeに任意文字列を返すケースをここで遮断する(crockford 8文字のみ許可)。
@@ -62,7 +67,7 @@ export async function runLogin(): Promise<number> {
 
     let result;
     try {
-      result = await pollDeviceFlow(deviceCode, apiUrl);
+      result = await pollDeviceFlow(deviceCode, apiUrl, sourceId);
     } catch (error) {
       if (error instanceof ApiError) {
         console.error(pc.red(`エラー: ${error.message}`));
@@ -76,7 +81,6 @@ export async function runLogin(): Promise<number> {
         console.error(pc.red("エラー: サーバーからの応答が不正です。"));
         return 1;
       }
-      const state = await readState();
       state.deviceToken = result.deviceToken;
       await writeState(state);
 

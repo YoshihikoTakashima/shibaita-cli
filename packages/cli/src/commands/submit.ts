@@ -9,12 +9,12 @@ import {
   parseLogFiles,
   totalTokens,
 } from "@shibaita/core";
-import type { DailyLimitHits, DailyUsage, SourceIdFallback } from "@shibaita/core";
+import type { DailyLimitHits, DailyUsage } from "@shibaita/core";
 import { dayUsageSchema, limitHitSchema, submissionSchema } from "@shibaita/schema";
 import type { DayUsagePayload, LimitHitPayload, SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
 import { openInBrowser } from "../browser-open.js";
-import { readState, writeState, type ShibaitaState } from "../state.js";
+import { createStateFallback, readState, writeState } from "../state.js";
 import { getPackageVersion } from "../version.js";
 
 export interface SubmitOptions {
@@ -115,22 +115,6 @@ function buildPayload(
   }
 
   return payload;
-}
-
-/**
- * state.json をフォールバック先とした SourceIdFallback。
- * 主要ログルート直下に `.shibaita-source-id` を作成できない環境(権限なし等)向け。
- */
-function createStateFallback(state: ShibaitaState): SourceIdFallback {
-  return {
-    async read() {
-      return state.fallbackSourceId;
-    },
-    async write(sourceId: string) {
-      state.fallbackSourceId = sourceId;
-      await writeState(state);
-    },
-  };
 }
 
 function lastSubmittedKey(date: string, model: string): string {

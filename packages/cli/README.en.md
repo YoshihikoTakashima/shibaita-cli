@@ -81,6 +81,18 @@ In addition, if any rate-limit hits occurred in the covered period, we send the
 number of times you hit a rate limit, per day only — we never read or store the
 contents of the `rateLimits` field itself.
 
+## FAQ
+
+**Q. Can I use the same PC with multiple accounts?**
+
+A. No. One device (i.e. one log folder) is always bound to exactly one account
+(keyed by the `.shibaita-source-id` UUID). If you try `pair`/`login` from a different
+account on the same PC, you'll get an error saying "This PC (log folder) is already
+linked to a different account." To switch accounts, log in with the original account
+and unlink this device from the [settings page](https://shibaita.ai/settings), or
+delete the original account. Note that unlinking/deleting removes that device's
+recorded data.
+
 ## Monorepo layout
 
 ```text
