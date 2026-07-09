@@ -13,6 +13,7 @@ import type { DailyLimitHits, DailyUsage, SourceIdFallback } from "@shibaita/cor
 import { dayUsageSchema, limitHitSchema, submissionSchema } from "@shibaita/schema";
 import type { DayUsagePayload, LimitHitPayload, SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
+import { openInBrowser } from "../browser-open.js";
 import { readState, writeState, type ShibaitaState } from "../state.js";
 import { getPackageVersion } from "../version.js";
 
@@ -20,6 +21,7 @@ export interface SubmitOptions {
   dryRun: boolean;
   yes: boolean;
   days: number;
+  noOpen: boolean;
 }
 
 const DEFAULT_DAYS = 90;
@@ -33,6 +35,7 @@ export function parseSubmitArgs(args: string[]): SubmitOptions {
   let dryRun = false;
   let yes = false;
   let days = DEFAULT_DAYS;
+  let noOpen = false;
 
   for (let i = 0; i < args.length; i++) {
     const arg = args[i];
@@ -40,6 +43,8 @@ export function parseSubmitArgs(args: string[]): SubmitOptions {
       dryRun = true;
     } else if (arg === "--yes") {
       yes = true;
+    } else if (arg === "--no-open") {
+      noOpen = true;
     } else if (arg === "--days") {
       const value = args[i + 1];
       const n = value ? Number.parseInt(value, 10) : NaN;
@@ -48,7 +53,7 @@ export function parseSubmitArgs(args: string[]): SubmitOptions {
     }
   }
 
-  return { dryRun, yes, days };
+  return { dryRun, yes, days, noOpen };
 }
 
 export type OsType = "macos" | "windows" | "linux" | "other";
@@ -225,8 +230,12 @@ export async function runSubmit(args: string[]): Promise<number> {
     await writeState(state);
 
     console.log(pc.green(`送信が完了しました。(受理: ${response.accepted}件)`));
-    if (response.profileUrl) {
-      console.log(`プロフィール: ${response.profileUrl}`);
+    // 結果ページはサーバ応答のURLではなく自前組立(getApiUrl()+/me)を開く(login同様の方針)。
+    const meUrl = `${apiUrl}/me`;
+    console.log(`マイページ: ${meUrl}`);
+    if (!options.noOpen) {
+      openInBrowser(meUrl);
+      console.log(pc.dim("ブラウザで結果を開きました。(--no-open で抑止できます)"));
     }
     return 0;
   } catch (error) {

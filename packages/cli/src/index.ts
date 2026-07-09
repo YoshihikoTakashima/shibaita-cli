@@ -47,7 +47,7 @@ function printHelp(): void {
   npx shibaita inspect        日別・モデル別の詳細集計を表示 [--days N=30]
   npx shibaita login          ブラウザでPCを連携(初回はこちら)
   npx shibaita pair <code>    スマホで発行したペアリングコードでデバイスを登録
-  npx shibaita submit         集計結果を送信 [--dry-run] [--yes] [--days N=90]
+  npx shibaita submit         集計結果を送信 [--dry-run] [--yes] [--days N=90] [--no-open]
   npx shibaita logout         ローカルの登録情報を削除
   npx shibaita install-skill  Claude Code用スキルをインストール [--api-url URL]
 `);
