@@ -30,10 +30,30 @@ export interface DailyUsage {
   messageCount: number;
 }
 
+/**
+ * レート制限ヒット1件分の検出結果。
+ * 表示・保存するのは日別件数のみであり、rateLimitsフィールドの中身(値)は一切読まない・保持しない。
+ */
+export interface RateLimitHit {
+  /** dedupキー: 行のuuid。なければ検出行(トリム済み生テキスト)そのもの */
+  key: string;
+  /** ISO文字列由来のDate。日別集計の基準(行のtimestampが無い/不正な行はそもそも検出しない) */
+  timestamp: Date;
+}
+
+/** 日別のレート制限ヒット件数集計結果 */
+export interface DailyLimitHits {
+  /** YYYY-MM-DD (ローカルTZ) */
+  date: string;
+  count: number;
+}
+
 /** parse.ts の結果 */
 export interface ParseResult {
   entries: UsageEntry[];
   skippedLines: number;
+  /** dedup前の検出済みレート制限ヒット。dedupは呼び出し側(parseLogFiles)で全ファイル横断して行う */
+  rateLimitHits: RateLimitHit[];
 }
 
 export interface AggregateOptions {

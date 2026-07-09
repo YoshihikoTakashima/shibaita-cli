@@ -1,0 +1,1 @@
+{"type":"system","subtype":"api_error","timestamp":"2026-06-07T10:00:00.000Z","error":{"type":"rate_limit_error","rateLimits":{"resetsAt":"2026-06-07T11:00:00.000Z"}}}

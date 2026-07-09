@@ -16,6 +16,17 @@ export const dayUsageSchema = z
   })
   .strict();
 
+/**
+ * レート制限ヒットの日別件数(表示なし・将来用)。rateLimitsフィールドの中身の値は
+ * 一切含まない・保持しない。含めるのは日付と検出件数のみ。
+ */
+export const limitHitSchema = z
+  .object({
+    date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    count: z.number().int().nonnegative(),
+  })
+  .strict();
+
 /** submit時の送信ボディ全体 */
 export const submissionSchema = z
   .object({
@@ -26,8 +37,11 @@ export const submissionSchema = z
     /** 送信元OS種別。端末別内訳の表示に利用。ホスト名・マシン名等は含まない */
     os: z.enum(["macos", "windows", "linux", "other"]),
     days: z.array(dayUsageSchema).min(1).max(2000),
+    /** 期間内にレート制限ヒットが無い場合は省略する(送らない) */
+    limitHits: z.array(limitHitSchema).max(93).optional(),
   })
   .strict();
 
 export type DayUsagePayload = z.infer<typeof dayUsageSchema>;
+export type LimitHitPayload = z.infer<typeof limitHitSchema>;
 export type SubmissionPayload = z.infer<typeof submissionSchema>;

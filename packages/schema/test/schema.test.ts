@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { dayUsageSchema, submissionSchema } from "../src/index.js";
+import { dayUsageSchema, limitHitSchema, submissionSchema } from "../src/index.js";
 
 function validDay() {
   return {
@@ -152,6 +152,93 @@ describe("submissionSchema", () => {
       clientVersion: "0.1.0",
       os: "macos",
       days: [validDay()],
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
+  });
+});
+
+function validLimitHit() {
+  return { date: "2026-06-10", count: 3 };
+}
+
+describe("limitHitSchema", () => {
+  it("正常な値を受理する", () => {
+    expect(() => limitHitSchema.parse(validLimitHit())).not.toThrow();
+  });
+
+  it("countが0でも受理する", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), count: 0 })).not.toThrow();
+  });
+
+  it("countが負値の場合は拒否する", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), count: -1 })).toThrow();
+  });
+
+  it("countが整数でない場合は拒否する", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), count: 1.5 })).toThrow();
+  });
+
+  it("日付フォーマット不正を拒否する", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), date: "2026/06/10" })).toThrow();
+  });
+
+  it("未知キーを含む場合は拒否する(strict)", () => {
+    expect(() =>
+      limitHitSchema.parse({ ...validLimitHit(), extra: "not-allowed" }),
+    ).toThrow();
+  });
+});
+
+describe("submissionSchema (limitHits)", () => {
+  it("limitHitsを省略した場合も受理する(0件時は省略される想定)", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay()],
+    };
+    const result = submissionSchema.parse(payload);
+    expect(result.limitHits).toBeUndefined();
+  });
+
+  it("limitHitsを含む送信データを受理する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay()],
+      limitHits: [validLimitHit()],
+    };
+    const result = submissionSchema.parse(payload);
+    expect(result.limitHits).toEqual([validLimitHit()]);
+  });
+
+  it("limitHitsが93件を超える場合は拒否する(上限)", () => {
+    const limitHits = Array.from({ length: 94 }, (_, i) => ({
+      date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
+      count: 1,
+    }));
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay()],
+      limitHits,
+    };
+    expect(() => submissionSchema.parse(payload)).toThrow();
+  });
+
+  it("limitHits内の要素が不正な場合は全体を拒否する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay()],
+      limitHits: [{ ...validLimitHit(), count: -1 }],
     };
     expect(() => submissionSchema.parse(payload)).toThrow();
   });

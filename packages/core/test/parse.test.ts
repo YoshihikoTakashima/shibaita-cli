@@ -84,6 +84,69 @@ describe("parseLogContent", () => {
   });
 });
 
+describe("レート制限ヒット検出(error.rateLimits)", () => {
+  it("error.rateLimitsを持つ行を検出し、usage集計と同じスキャンで一緒に返す", async () => {
+    const content = await loadFixture("rate-limit-basic.jsonl");
+    const { entries, rateLimitHits } = parseLogContent(content);
+
+    // usageエントリ(assistant行)は通常どおり1件抽出される(同じスキャンで両方処理される)
+    expect(entries).toHaveLength(1);
+
+    // timestampを持つrateLimits行のみ検出(3件)。error.rateLimitsが無い行・timestamp欠落行は検出しない。
+    expect(rateLimitHits).toHaveLength(3);
+    expect(rateLimitHits.map((h) => h.key).sort()).toEqual(["evt-rl-1", "evt-rl-2", "evt-rl-3"]);
+  });
+
+  it("行のuuidをdedupキーとして採用する", async () => {
+    const content = await loadFixture("rate-limit-basic.jsonl");
+    const { rateLimitHits } = parseLogContent(content);
+
+    const hit = rateLimitHits.find((h) => h.key === "evt-rl-1")!;
+    expect(hit.timestamp.toISOString()).toBe("2026-06-05T10:15:00.000Z");
+  });
+
+  it("rateLimitsの値そのものはUsageEntryやRateLimitHitに含まれない(件数のみ保持)", async () => {
+    const content = await loadFixture("rate-limit-basic.jsonl");
+    const { rateLimitHits } = parseLogContent(content);
+
+    for (const hit of rateLimitHits) {
+      expect(Object.keys(hit).sort()).toEqual(["key", "timestamp"]);
+    }
+  });
+
+  it("timestamp欠落行・error.rateLimitsが無い行は検出しない", async () => {
+    const content = await loadFixture("rate-limit-basic.jsonl");
+    const { rateLimitHits } = parseLogContent(content);
+
+    expect(rateLimitHits.some((h) => h.key === "evt-not-rl")).toBe(false);
+    expect(rateLimitHits.some((h) => h.key === "evt-rl-no-ts")).toBe(false);
+  });
+
+  it("uuid欠落時は検出行(トリム済み生テキスト)そのものをdedupキーとして採用する", async () => {
+    const content = await loadFixture("rate-limit-no-uuid.jsonl");
+    const { rateLimitHits } = parseLogContent(content);
+
+    expect(rateLimitHits).toHaveLength(1);
+    expect(rateLimitHits[0]!.key).toBe(content.trim());
+  });
+});
+
+describe("parseLogFiles (レート制限ヒットのdedup)", () => {
+  it("同一uuidを複数ファイル横断でdedupする(二重計上防止)", async () => {
+    const filePath = join(fixturesDir, "rate-limit-basic.jsonl");
+    const { rateLimitHits } = await parseLogFiles([filePath, filePath]);
+
+    expect(rateLimitHits).toHaveLength(3);
+  });
+
+  it("uuid欠落時は検出行そのものをキーに複数ファイル横断でdedupする", async () => {
+    const filePath = join(fixturesDir, "rate-limit-no-uuid.jsonl");
+    const { rateLimitHits } = await parseLogFiles([filePath, filePath]);
+
+    expect(rateLimitHits).toHaveLength(1);
+  });
+});
+
 describe("parseLogFiles (dedup)", () => {
   it("同一keyの複数行(ストリーミング)をフィールドごとにmaxマージし、timestampは最初に見たものを保持する", async () => {
     const filePath = join(fixturesDir, "streaming-duplicate.jsonl");

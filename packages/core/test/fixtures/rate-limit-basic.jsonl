@@ -1,0 +1,6 @@
+{"type":"assistant","timestamp":"2026-06-05T09:00:00.000Z","requestId":"req-rl-1","message":{"id":"msg-rl-1","model":"claude-opus-4","usage":{"input_tokens":10,"output_tokens":5,"cache_read_input_tokens":0,"cache_creation_input_tokens":0}}}
+{"type":"system","subtype":"api_error","timestamp":"2026-06-05T10:15:00.000Z","uuid":"evt-rl-1","error":{"type":"rate_limit_error","message":"Rate limit reached","rateLimits":{"resetsAt":"2026-06-05T11:00:00.000Z"}}}
+{"type":"system","subtype":"api_error","timestamp":"2026-06-05T13:00:00.000Z","uuid":"evt-rl-2","error":{"type":"rate_limit_error","message":"Rate limit reached","rateLimits":{"resetsAt":"2026-06-05T14:00:00.000Z"}}}
+{"type":"system","subtype":"api_error","timestamp":"2026-06-06T08:00:00.000Z","uuid":"evt-rl-3","error":{"type":"rate_limit_error","message":"Rate limit reached","rateLimits":{"resetsAt":"2026-06-06T09:00:00.000Z"}}}
+{"type":"system","subtype":"other_error","timestamp":"2026-06-06T09:00:00.000Z","uuid":"evt-not-rl","error":{"type":"overloaded_error","message":"Overloaded"}}
+{"type":"system","subtype":"api_error","uuid":"evt-rl-no-ts","error":{"type":"rate_limit_error","rateLimits":{}}}

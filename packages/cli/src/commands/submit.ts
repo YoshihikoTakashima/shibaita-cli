@@ -1,6 +1,7 @@
 import { createInterface } from "node:readline/promises";
 import pc from "picocolors";
 import {
+  aggregateRateLimitHits,
   aggregateUsage,
   discoverLogFiles,
   getOrCreateSourceId,
@@ -8,9 +9,9 @@ import {
   parseLogFiles,
   totalTokens,
 } from "@shibaita/core";
-import type { DailyUsage, SourceIdFallback } from "@shibaita/core";
-import { dayUsageSchema, submissionSchema } from "@shibaita/schema";
-import type { DayUsagePayload, SubmissionPayload } from "@shibaita/schema";
+import type { DailyLimitHits, DailyUsage, SourceIdFallback } from "@shibaita/core";
+import { dayUsageSchema, limitHitSchema, submissionSchema } from "@shibaita/schema";
+import type { DayUsagePayload, LimitHitPayload, SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
 import { readState, writeState, type ShibaitaState } from "../state.js";
 import { getPackageVersion } from "../version.js";
@@ -76,20 +77,39 @@ function toDayUsagePayload(usage: DailyUsage): DayUsagePayload {
   };
 }
 
-function buildPayload(daily: DailyUsage[], sourceId: string): SubmissionPayload {
+/** allowlist方式: DailyLimitHitsから明示的にフィールドを1つずつ写してpayload要素を構築する */
+function toLimitHitPayload(hit: DailyLimitHits): LimitHitPayload {
+  return {
+    date: hit.date,
+    count: hit.count,
+  };
+}
+
+function buildPayload(
+  daily: DailyUsage[],
+  limitHits: DailyLimitHits[],
+  sourceId: string,
+): SubmissionPayload {
   const days = daily.map((d) => {
     const day = toDayUsagePayload(d);
     // 個別行もstrict検証しておく(allowlist方式の徹底)
     return dayUsageSchema.parse(day);
   });
 
-  return {
+  const payload: SubmissionPayload = {
     adapterVersion: ADAPTER_VERSION,
     clientVersion: CLIENT_VERSION,
     sourceId,
     os: detectOs(),
     days,
   };
+
+  // 期間内のヒットが無ければpayloadに含めない(0件なら省略)。
+  if (limitHits.length > 0) {
+    payload.limitHits = limitHits.map((h) => limitHitSchema.parse(toLimitHitPayload(h)));
+  }
+
+  return payload;
 }
 
 /**
@@ -134,8 +154,9 @@ export async function runSubmit(args: string[]): Promise<number> {
   const options = parseSubmitArgs(args);
 
   const files = await discoverLogFiles();
-  const { entries } = await parseLogFiles(files);
+  const { entries, rateLimitHits } = await parseLogFiles(files);
   const daily = aggregateUsage(entries, { days: options.days });
+  const dailyLimitHits = aggregateRateLimitHits(rateLimitHits, { days: options.days });
 
   if (daily.length === 0) {
     console.log(pc.yellow("送信できる利用量データがありません。"));
@@ -144,7 +165,7 @@ export async function runSubmit(args: string[]): Promise<number> {
 
   const state = await readState();
   const sourceId = await getOrCreateSourceId(getPrimaryLogRoot(), createStateFallback(state));
-  const payload = buildPayload(daily, sourceId);
+  const payload = buildPayload(daily, dailyLimitHits, sourceId);
 
   if (options.dryRun) {
     console.log(pc.bold("送信予定のデータ(dry-run、送信は行いません):"));
@@ -179,6 +200,10 @@ export async function runSubmit(args: string[]): Promise<number> {
     console.log(`  ${d.date}  ${d.model.padEnd(24)}  ${formatNumber(totalTokens(d)).padStart(14)}  ${statusColor}`);
   }
   console.log();
+  if (dailyLimitHits.length > 0) {
+    const totalHits = dailyLimitHits.reduce((sum, h) => sum + h.count, 0);
+    console.log(pc.bold("リミットヒット:"), `${dailyLimitHits.length}日/合計${totalHits}回`);
+  }
   console.log(pc.dim("送信するのは上記の日別集計値のみです。"));
 
   if (!options.yes) {

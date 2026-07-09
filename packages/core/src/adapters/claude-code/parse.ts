@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { ParseResult, UsageEntry } from "../../types.js";
+import type { ParseResult, RateLimitHit, UsageEntry } from "../../types.js";
 
 interface RawUsage {
   input_tokens?: unknown;
@@ -20,6 +20,7 @@ interface RawLine {
   requestId?: unknown;
   timestamp?: unknown;
   uuid?: unknown;
+  error?: unknown;
 }
 
 /** 数値でない・負値は0にする */
@@ -74,6 +75,27 @@ function parseLine(raw: RawLine): UsageEntry | null {
   };
 }
 
+/** raw.error が `rateLimits` フィールドを持つオブジェクトかどうか(値の中身は見ない・読まない)。 */
+function hasRateLimitsField(error: unknown): error is Record<string, unknown> {
+  return typeof error === "object" && error !== null && "rateLimits" in error;
+}
+
+/**
+ * 1行分の生JSONからレート制限ヒットを検出する。type種別は問わない(assistant行の判定とは独立)。
+ * timestampが無い/不正な行はskip(検出しない)。rateLimitsの値そのものは一切読まない・保持しない(検出のみ)。
+ */
+function detectRateLimitHit(raw: RawLine, rawLineText: string): RateLimitHit | null {
+  if (!hasRateLimitsField(raw.error)) return null;
+
+  if (typeof raw.timestamp !== "string") return null;
+  const timestamp = new Date(raw.timestamp);
+  if (Number.isNaN(timestamp.getTime())) return null;
+
+  const key = typeof raw.uuid === "string" ? raw.uuid : rawLineText;
+
+  return { key, timestamp };
+}
+
 /**
  * 単一ファイルをパースする。JSONL 1行ずつ処理(ファイル全体を1文字列で読んでsplitする。ただし1行ずつtry/catch)。
  * このファイル単体のdedupは行わない(dedupは呼び出し側で全ファイル横断して行う)。
@@ -86,6 +108,7 @@ export async function parseLogFile(filePath: string): Promise<ParseResult> {
 /** テスト用に文字列から直接パースする */
 export function parseLogContent(content: string): ParseResult {
   const entries: UsageEntry[] = [];
+  const rateLimitHits: RateLimitHit[] = [];
   let skippedLines = 0;
 
   const lines = content.split("\n");
@@ -95,6 +118,13 @@ export function parseLogContent(content: string): ParseResult {
 
     try {
       const raw = JSON.parse(trimmed) as RawLine;
+
+      // usage集計とレート制限ヒット検出は同じスキャン(この1行のパース結果)で一緒に処理する(2度読みしない)。
+      const rateLimitHit = detectRateLimitHit(raw, trimmed);
+      if (rateLimitHit) {
+        rateLimitHits.push(rateLimitHit);
+      }
+
       if (raw.type === "assistant") {
         const entry = parseLine(raw);
         if (entry) {
@@ -109,14 +139,17 @@ export function parseLogContent(content: string): ParseResult {
     }
   }
 
-  return { entries, skippedLines };
+  return { entries, skippedLines, rateLimitHits };
 }
 
 /**
- * 複数ファイルをパースし、全ファイル横断でdedup(同一keyはフィールドごとにmaxマージ、timestampは最初に見たものを保持)する。
+ * 複数ファイルをパースし、全ファイル横断でdedupする。
+ * - usageエントリ: 同一keyはフィールドごとにmaxマージ、timestampは最初に見たものを保持する。
+ * - レート制限ヒット: 同一key(行のuuid、なければ検出行そのまま)は最初に見たものだけを1件として数える。
  */
 export async function parseLogFiles(filePaths: string[]): Promise<ParseResult> {
   const merged = new Map<string, UsageEntry>();
+  const rateLimitHitsByKey = new Map<string, RateLimitHit>();
   let skippedLines = 0;
 
   for (const filePath of filePaths) {
@@ -126,9 +159,19 @@ export async function parseLogFiles(filePaths: string[]): Promise<ParseResult> {
     for (const entry of result.entries) {
       mergeEntry(merged, entry);
     }
+
+    for (const hit of result.rateLimitHits) {
+      if (!rateLimitHitsByKey.has(hit.key)) {
+        rateLimitHitsByKey.set(hit.key, hit);
+      }
+    }
   }
 
-  return { entries: Array.from(merged.values()), skippedLines };
+  return {
+    entries: Array.from(merged.values()),
+    skippedLines,
+    rateLimitHits: Array.from(rateLimitHitsByKey.values()),
+  };
 }
 
 /** dedupマージ本体: 同一keyのエントリをフィールドごとにmaxで統合する。timestampは最初に見たものを保持。 */

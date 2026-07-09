@@ -71,6 +71,9 @@ containing only a random UUID) in your log folder. This exists solely to prevent
 double-counting when your logs are synced across multiple machines.
 We also send the source OS type (one of `macos`/`windows`/`linux`/`other` only —
 never the hostname or machine name) for the per-device breakdown shown on your page.
+In addition, if any rate-limit hits occurred in the covered period, we send the
+number of times you hit a rate limit, per day only — we never read or store the
+contents of the `rateLimits` field itself.
 
 ## Monorepo layout
 
