@@ -80,8 +80,10 @@ export async function runLogin(): Promise<number> {
       state.deviceToken = result.deviceToken;
       await writeState(state);
 
-      console.log(pc.green("連携完了!"));
-      console.log("npx shibaita submit で送信できます。");
+      console.log(pc.green("連携完了!(まだ何も送信されていません)"));
+      console.log();
+      console.log(pc.bold("次のステップ: ") + pc.cyan("npx shibaita submit"));
+      console.log(pc.dim("  ↑ 集計値を送信すると、ランキングとマイページに反映されます。"));
       return 0;
     }
 

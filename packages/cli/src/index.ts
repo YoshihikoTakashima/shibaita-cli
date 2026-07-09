@@ -32,7 +32,9 @@ async function runDefault(): Promise<number> {
   console.log(renderBarChart(recent, 7));
   console.log();
   console.log(pc.dim("npx shibaita inspect で詳細を確認できます。"));
-  console.log(pc.dim("ランキングに参加: ") + pc.cyan("npx shibaita login") + pc.dim(" (ブラウザで1クリック連携)"));
+  console.log(pc.bold("ランキングに参加するには(2ステップ):"));
+  console.log("  1. " + pc.cyan("npx shibaita login") + pc.dim("   初回のみ・ブラウザで1クリック連携"));
+  console.log("  2. " + pc.cyan("npx shibaita submit") + pc.dim("  集計値を送信(これでランキングに載る)"));
 
   return 0;
 }
