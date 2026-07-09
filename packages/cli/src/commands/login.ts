@@ -37,6 +37,14 @@ export async function runLogin(): Promise<number> {
     return 1;
   }
 
+  // サーバ応答のuserCodeを形式検証してからURLに使う。
+  // Windowsの `cmd /c start` はcmd自身が引数内の`&`等を解釈しうるため、
+  // 悪性サーバがuserCodeに任意文字列を返すケースをここで遮断する(crockford 8文字のみ許可)。
+  if (!/^[0-9A-HJKMNP-TV-Z]{8}$/.test(userCode)) {
+    console.error(pc.red("エラー: サーバーからの応答が不正です(連携コードの形式が不正)。"));
+    return 1;
+  }
+
   // URLはサーバ応答(verificationUrl)を信用せず、自前で組み立てる(シェルインジェクション対策)。
   const verificationUrl = `${apiUrl}/link?c=${userCode}`;
 
