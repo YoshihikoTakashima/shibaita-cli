@@ -64,7 +64,7 @@ export async function claimPairing(code: string, apiUrl: string): Promise<PairCl
       body: JSON.stringify({ code }),
     });
   } catch (error) {
-    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
   }
 
   if (!response.ok) {
@@ -93,7 +93,7 @@ export async function startDeviceFlow(apiUrl: string): Promise<DeviceStartRespon
       headers: { "Content-Type": "application/json" },
     });
   } catch (error) {
-    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
   }
 
   if (!response.ok) {
@@ -135,7 +135,7 @@ export async function pollDeviceFlow(
       body: JSON.stringify({ deviceCode }),
     });
   } catch (error) {
-    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
   }
 
   if (response.status !== 200 && response.status !== 410) {
@@ -176,7 +176,7 @@ export async function submitUsage(
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    throw new ApiError(`通信に失敗しました: ${(error as Error).message}`);
+    throw new ApiError(`通信に失敗しました: ${(error as Error).message}(接続先: ${apiUrl} — SHIBAITA_API_URL が設定されていないか確認してください)`);
   }
 
   if (!response.ok) {
