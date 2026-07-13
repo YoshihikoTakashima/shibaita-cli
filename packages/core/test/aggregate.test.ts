@@ -4,6 +4,8 @@ import type { RateLimitHit, UsageEntry } from "../src/types.js";
 
 function makeEntry(overrides: Partial<UsageEntry> & { key: string }): UsageEntry {
   return {
+    provider: "anthropic",
+    product: "claude-code",
     model: "claude-opus-4",
     timestamp: new Date("2026-06-10T12:00:00"),
     inputTokens: 0,
@@ -16,6 +18,7 @@ function makeEntry(overrides: Partial<UsageEntry> & { key: string }): UsageEntry
 
 function makeHit(overrides: Partial<RateLimitHit> & { key: string }): RateLimitHit {
   return {
+    provider: "anthropic",
     timestamp: new Date(2026, 5, 10, 12, 0, 0),
     ...overrides,
   };
@@ -50,6 +53,34 @@ describe("aggregateUsage", () => {
     expect(sonnet.inputTokens).toBe(20);
   });
 
+  it("providerが異なれば同一date×modelでも別バケットに分離する", () => {
+    const entries: UsageEntry[] = [
+      makeEntry({
+        key: "a",
+        provider: "anthropic",
+        product: "claude-code",
+        model: "same-name",
+        requestId: "r1",
+        inputTokens: 10,
+      }),
+      makeEntry({
+        key: "b",
+        provider: "openai",
+        product: "codex",
+        model: "same-name",
+        inputTokens: 20,
+      }),
+    ];
+
+    const result = aggregateUsage(entries);
+    expect(result).toHaveLength(2);
+    const anthropicBucket = result.find((r) => r.provider === "anthropic")!;
+    const openaiBucket = result.find((r) => r.provider === "openai")!;
+    expect(anthropicBucket.inputTokens).toBe(10);
+    expect(openaiBucket.inputTokens).toBe(20);
+    expect(openaiBucket.product).toBe("codex");
+  });
+
   it("日付が変わればローカルTZの日境界で別バケットにする", () => {
     const entries: UsageEntry[] = [
       makeEntry({ key: "a", requestId: "r1", timestamp: new Date(2026, 5, 10, 23, 59, 59), inputTokens: 1 }),
@@ -62,7 +93,7 @@ describe("aggregateUsage", () => {
     expect(result[1]!.date).toBe("2026-06-11");
   });
 
-  it("date×modelでソート済みの配列を返す", () => {
+  it("date×provider×product×modelでソート済みの配列を返す", () => {
     const entries: UsageEntry[] = [
       makeEntry({ key: "a", model: "z-model", timestamp: new Date(2026, 5, 12), requestId: "r1" }),
       makeEntry({ key: "b", model: "a-model", timestamp: new Date(2026, 5, 10), requestId: "r2" }),
@@ -80,6 +111,8 @@ describe("aggregateUsage", () => {
   it("合計しばき量はinput+output+cacheRead+cacheWriteの総和", () => {
     const usage = {
       date: "2026-06-10",
+      provider: "anthropic",
+      product: "claude-code",
       model: "claude-opus-4",
       inputTokens: 10,
       outputTokens: 20,
@@ -119,7 +152,7 @@ describe("aggregateUsage", () => {
 });
 
 describe("aggregateRateLimitHits", () => {
-  it("同日のヒットを件数として合算する", () => {
+  it("同日・同providerのヒットを件数として合算する", () => {
     const hits: RateLimitHit[] = [
       makeHit({ key: "a", timestamp: new Date(2026, 5, 10, 9, 0, 0) }),
       makeHit({ key: "b", timestamp: new Date(2026, 5, 10, 15, 0, 0) }),
@@ -127,7 +160,27 @@ describe("aggregateRateLimitHits", () => {
 
     const result = aggregateRateLimitHits(hits);
     expect(result).toHaveLength(1);
-    expect(result[0]).toEqual({ date: "2026-06-10", count: 2 });
+    expect(result[0]).toEqual({ date: "2026-06-10", provider: "anthropic", count: 2 });
+  });
+
+  it("providerが異なれば同日でも別バケットに分離する", () => {
+    const hits: RateLimitHit[] = [
+      makeHit({ key: "a", provider: "anthropic", timestamp: new Date(2026, 5, 10, 9, 0, 0) }),
+      makeHit({ key: "b", provider: "openai", timestamp: new Date(2026, 5, 10, 15, 0, 0) }),
+    ];
+
+    const result = aggregateRateLimitHits(hits);
+    expect(result).toHaveLength(2);
+    expect(result.find((r) => r.provider === "anthropic")).toEqual({
+      date: "2026-06-10",
+      provider: "anthropic",
+      count: 1,
+    });
+    expect(result.find((r) => r.provider === "openai")).toEqual({
+      date: "2026-06-10",
+      provider: "openai",
+      count: 1,
+    });
   });
 
   it("日付が変わればローカルTZの日境界で別バケットにする", () => {
@@ -138,8 +191,8 @@ describe("aggregateRateLimitHits", () => {
 
     const result = aggregateRateLimitHits(hits);
     expect(result).toHaveLength(2);
-    expect(result[0]).toEqual({ date: "2026-06-10", count: 1 });
-    expect(result[1]).toEqual({ date: "2026-06-11", count: 1 });
+    expect(result[0]).toEqual({ date: "2026-06-10", provider: "anthropic", count: 1 });
+    expect(result[1]).toEqual({ date: "2026-06-11", provider: "anthropic", count: 1 });
   });
 
   it("日付順にソート済みの配列を返す", () => {

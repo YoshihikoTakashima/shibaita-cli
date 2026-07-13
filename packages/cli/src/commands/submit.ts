@@ -1,19 +1,12 @@
 import { createInterface } from "node:readline/promises";
 import pc from "picocolors";
-import {
-  aggregateRateLimitHits,
-  aggregateUsage,
-  discoverLogFiles,
-  getOrCreateSourceId,
-  getPrimaryLogRoot,
-  parseLogFiles,
-  totalTokens,
-} from "@shibaita/core";
+import { aggregateRateLimitHits, aggregateUsage, getOrCreateSourceId, getPrimaryLogRoot, totalTokens } from "@shibaita/core";
 import type { DailyLimitHits, DailyUsage } from "@shibaita/core";
 import { dayUsageSchema, limitHitSchema, submissionSchema } from "@shibaita/schema";
-import type { DayUsagePayload, LimitHitPayload, SubmissionPayload } from "@shibaita/schema";
+import type { SubmissionPayload } from "@shibaita/schema";
 import { ApiError, getApiUrl, submitUsage } from "../api.js";
 import { openInBrowser } from "../browser-open.js";
+import { collectAllUsage } from "../collect-usage.js";
 import { createStateFallback, readState, writeState } from "../state.js";
 import { getPackageVersion } from "../version.js";
 
@@ -27,7 +20,9 @@ export interface SubmitOptions {
 const DEFAULT_DAYS = 90;
 // ADAPTER_VERSION: 送信ペイロードスキーマ(packages/schema)自体のバージョン。
 // パッケージのバージョン(CLIENT_VERSION)とは別概念のため固定値のまま管理する。
-const ADAPTER_VERSION = "1.0.0";
+// 1.1.0: provider/product を複数値(anthropic/claude-code, openai/codex)に対応させ、
+// limitHitsにもproviderを追加(Codexアダプタ追加)。
+const ADAPTER_VERSION = "1.1.0";
 // CLIENT_VERSION: packages/cli/package.json の "version" を唯一のソースとする。
 const CLIENT_VERSION = getPackageVersion();
 
@@ -66,12 +61,16 @@ export function detectOs(platform: NodeJS.Platform = process.platform): OsType {
   return "other";
 }
 
-/** allowlist方式: DailyUsageから明示的にフィールドを1つずつ写してpayload要素を構築する */
-function toDayUsagePayload(usage: DailyUsage): DayUsagePayload {
+/**
+ * allowlist方式: DailyUsageから明示的にフィールドを1つずつ写してpayload要素を構築する。
+ * provider/productはアダプタ由来の文字列(DailyUsage.provider/product)をそのまま転記し、
+ * 呼び出し側(buildPayload)でdayUsageSchema.parseによりenumとして検証・narrowingする。
+ */
+function toDayUsagePayload(usage: DailyUsage): Record<string, unknown> {
   return {
     date: usage.date,
-    provider: "anthropic",
-    product: "claude-code",
+    provider: usage.provider,
+    product: usage.product,
     model: usage.model,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
@@ -82,10 +81,14 @@ function toDayUsagePayload(usage: DailyUsage): DayUsagePayload {
   };
 }
 
-/** allowlist方式: DailyLimitHitsから明示的にフィールドを1つずつ写してpayload要素を構築する */
-function toLimitHitPayload(hit: DailyLimitHits): LimitHitPayload {
+/**
+ * allowlist方式: DailyLimitHitsから明示的にフィールドを1つずつ写してpayload要素を構築する。
+ * providerはlimitHitSchema.parseでenumとして検証・narrowingする。
+ */
+function toLimitHitPayload(hit: DailyLimitHits): Record<string, unknown> {
   return {
     date: hit.date,
+    provider: hit.provider,
     count: hit.count,
   };
 }
@@ -117,8 +120,8 @@ function buildPayload(
   return payload;
 }
 
-function lastSubmittedKey(date: string, model: string): string {
-  return `${date}:${model}`;
+function lastSubmittedKey(date: string, provider: string, product: string, model: string): string {
+  return `${date}:${provider}:${product}:${model}`;
 }
 
 type SubmitStatusLabel = "新規" | "更新" | "送信済み";
@@ -127,7 +130,7 @@ function classifyStatus(
   usage: DailyUsage,
   lastSubmitted: Record<string, number> | undefined,
 ): SubmitStatusLabel {
-  const key = lastSubmittedKey(usage.date, usage.model);
+  const key = lastSubmittedKey(usage.date, usage.provider, usage.product, usage.model);
   const previous = lastSubmitted?.[key];
   if (previous === undefined) return "新規";
   const current = totalTokens(usage);
@@ -142,8 +145,7 @@ function formatNumber(n: number): string {
 export async function runSubmit(args: string[]): Promise<number> {
   const options = parseSubmitArgs(args);
 
-  const files = await discoverLogFiles();
-  const { entries, rateLimitHits } = await parseLogFiles(files);
+  const { entries, rateLimitHits } = await collectAllUsage();
   const daily = aggregateUsage(entries, { days: options.days });
   const dailyLimitHits = aggregateRateLimitHits(rateLimitHits, { days: options.days });
 
@@ -185,7 +187,8 @@ export async function runSubmit(args: string[]): Promise<number> {
     const status = classifyStatus(d, state.lastSubmitted);
     const statusColor =
       status === "新規" ? pc.green(status) : status === "更新" ? pc.yellow(status) : pc.dim(status);
-    console.log(`  ${d.date}  ${d.model.padEnd(24)}  ${formatNumber(totalTokens(d)).padStart(14)}  ${statusColor}`);
+    const label = `${d.product}/${d.model}`;
+    console.log(`  ${d.date}  ${label.padEnd(28)}  ${formatNumber(totalTokens(d)).padStart(14)}  ${statusColor}`);
   }
   console.log();
   if (dailyLimitHits.length > 0) {
@@ -208,7 +211,7 @@ export async function runSubmit(args: string[]): Promise<number> {
 
     const lastSubmitted = state.lastSubmitted ?? {};
     for (const d of daily) {
-      lastSubmitted[lastSubmittedKey(d.date, d.model)] = totalTokens(d);
+      lastSubmitted[lastSubmittedKey(d.date, d.provider, d.product, d.model)] = totalTokens(d);
     }
     state.lastSubmitted = lastSubmitted;
     await writeState(state);

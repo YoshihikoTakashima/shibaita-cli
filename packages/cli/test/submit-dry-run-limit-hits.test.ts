@@ -106,8 +106,8 @@ describe("submit --dry-run (limitHits)", () => {
       today.getDate(),
     ).padStart(2, "0")}`;
 
-    expect(payload.limitHits).toEqual([{ date: todayStr, count: 2 }]);
+    expect(payload.limitHits).toEqual([{ date: todayStr, provider: "anthropic", count: 2 }]);
     // rateLimitsの中身(resetsAt等)は一切含まれない
-    expect(Object.keys(payload.limitHits[0]).sort()).toEqual(["count", "date"]);
+    expect(Object.keys(payload.limitHits[0]).sort()).toEqual(["count", "date", "provider"]);
   });
 });

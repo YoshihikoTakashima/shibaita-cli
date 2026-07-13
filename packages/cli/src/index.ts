@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import pc from "picocolors";
-import { aggregateUsage, discoverLogFiles, parseLogFiles, totalTokens } from "@shibaita/core";
+import { aggregateUsage, totalTokens } from "@shibaita/core";
+import { collectAllUsage } from "./collect-usage.js";
 import { runInspect } from "./commands/inspect.js";
 import { runLogin } from "./commands/login.js";
 import { runPair } from "./commands/pair.js";
@@ -16,8 +17,7 @@ function currentMonthDays(): number {
 
 /** `shibaita` (引数なし) : 今月の合計しばき量+直近7日のバー表示+案内 */
 async function runDefault(): Promise<number> {
-  const files = await discoverLogFiles();
-  const { entries } = await parseLogFiles(files);
+  const { entries } = await collectAllUsage();
 
   const daily = aggregateUsage(entries, { days: currentMonthDays() });
   const monthTotal = daily.reduce((sum, d) => sum + totalTokens(d), 0);
