@@ -85,15 +85,19 @@ describe("ネットワーク遮断: inspectコマンドの実行パス", () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch");
     const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
 
-    // CLAUDE_CONFIG_DIR を存在しないディレクトリに向けてログ探索を空にする(実ログに依存しない)
+    // CLAUDE_CONFIG_DIR / CODEX_HOME を存在しないディレクトリに向けてログ探索を空にする
+    // (実ログに依存しない。CODEX_HOMEを隔離しないと実機の~/.codex走査でタイムアウトする)
     const originalEnv = process.env.CLAUDE_CONFIG_DIR;
+    const originalCodexHome = process.env.CODEX_HOME;
     const originalHome = process.env.HOME;
     process.env.CLAUDE_CONFIG_DIR = join(__dirname, "fixtures", "no-such-dir");
+    process.env.CODEX_HOME = join(__dirname, "fixtures", "no-such-dir");
 
     try {
       await runInspect(["--days", "30"]);
     } finally {
       process.env.CLAUDE_CONFIG_DIR = originalEnv;
+      process.env.CODEX_HOME = originalCodexHome;
       process.env.HOME = originalHome;
       logSpy.mockRestore();
     }
