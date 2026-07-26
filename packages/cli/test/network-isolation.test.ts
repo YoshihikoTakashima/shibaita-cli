@@ -92,6 +92,9 @@ describe("ネットワーク遮断: inspectコマンドの実行パス", () => {
     const originalHome = process.env.HOME;
     process.env.CLAUDE_CONFIG_DIR = join(__dirname, "fixtures", "no-such-dir");
     process.env.CODEX_HOME = join(__dirname, "fixtures", "no-such-dir");
+    // discoverはCLAUDE_CONFIG_DIRに加えて常に ~/.claude も走査するため、
+    // HOME自体も差し替えないと実機ログの量次第でタイムアウトする(os.homedirはHOMEを参照)
+    process.env.HOME = join(__dirname, "fixtures", "no-such-dir");
 
     try {
       await runInspect(["--days", "30"]);
