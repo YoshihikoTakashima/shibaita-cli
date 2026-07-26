@@ -16,9 +16,22 @@ function validDay() {
   };
 }
 
+function validCodexDay() {
+  return {
+    ...validDay(),
+    provider: "openai" as const,
+    product: "codex" as const,
+    model: "gpt-5.5",
+  };
+}
+
 describe("dayUsageSchema", () => {
-  it("正常な値を受理する", () => {
+  it("正常な値を受理する(anthropic/claude-code)", () => {
     expect(() => dayUsageSchema.parse(validDay())).not.toThrow();
+  });
+
+  it("正常な値を受理する(openai/codex)", () => {
+    expect(() => dayUsageSchema.parse(validCodexDay())).not.toThrow();
   });
 
   it("未知キーを含む場合は拒否する(strict)", () => {
@@ -36,9 +49,24 @@ describe("dayUsageSchema", () => {
     expect(() => dayUsageSchema.parse(badDate)).toThrow();
   });
 
-  it("providerがanthropic以外は拒否する", () => {
-    const badProvider = { ...validDay(), provider: "openai" };
+  it("providerが未知の値の場合は拒否する", () => {
+    const badProvider = { ...validDay(), provider: "google" };
     expect(() => dayUsageSchema.parse(badProvider)).toThrow();
+  });
+
+  it("providerが欠落している場合は拒否する", () => {
+    const { provider: _provider, ...rest } = validDay();
+    expect(() => dayUsageSchema.parse(rest)).toThrow();
+  });
+
+  it("productが未知の値の場合は拒否する", () => {
+    const badProduct = { ...validDay(), product: "codex-cli" };
+    expect(() => dayUsageSchema.parse(badProduct)).toThrow();
+  });
+
+  it("productが欠落している場合は拒否する", () => {
+    const { product: _product, ...rest } = validDay();
+    expect(() => dayUsageSchema.parse(rest)).toThrow();
   });
 
   it("modelが空文字は拒否する", () => {
@@ -57,11 +85,22 @@ const VALID_SOURCE_ID = "11111111-1111-4111-8111-111111111111";
 describe("submissionSchema", () => {
   it("正常な送信データを受理する", () => {
     const payload = {
-      adapterVersion: "1.0.0",
+      adapterVersion: "1.1.0",
       clientVersion: "0.1.0",
       sourceId: VALID_SOURCE_ID,
       os: "macos",
       days: [validDay()],
+    };
+    expect(() => submissionSchema.parse(payload)).not.toThrow();
+  });
+
+  it("provider/productが異なる複数adapterのdaysを同時に受理する", () => {
+    const payload = {
+      adapterVersion: "1.1.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay(), validCodexDay()],
     };
     expect(() => submissionSchema.parse(payload)).not.toThrow();
   });
@@ -158,12 +197,16 @@ describe("submissionSchema", () => {
 });
 
 function validLimitHit() {
-  return { date: "2026-06-10", count: 3 };
+  return { date: "2026-06-10", provider: "anthropic" as const, count: 3 };
 }
 
 describe("limitHitSchema", () => {
-  it("正常な値を受理する", () => {
+  it("正常な値を受理する(anthropic)", () => {
     expect(() => limitHitSchema.parse(validLimitHit())).not.toThrow();
+  });
+
+  it("正常な値を受理する(openai)", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), provider: "openai" })).not.toThrow();
   });
 
   it("countが0でも受理する", () => {
@@ -180,6 +223,15 @@ describe("limitHitSchema", () => {
 
   it("日付フォーマット不正を拒否する", () => {
     expect(() => limitHitSchema.parse({ ...validLimitHit(), date: "2026/06/10" })).toThrow();
+  });
+
+  it("providerが未知の値の場合は拒否する", () => {
+    expect(() => limitHitSchema.parse({ ...validLimitHit(), provider: "google" })).toThrow();
+  });
+
+  it("providerが欠落している場合は拒否する", () => {
+    const { provider: _provider, ...rest } = validLimitHit();
+    expect(() => limitHitSchema.parse(rest)).toThrow();
   });
 
   it("未知キーを含む場合は拒否する(strict)", () => {
@@ -215,9 +267,23 @@ describe("submissionSchema (limitHits)", () => {
     expect(result.limitHits).toEqual([validLimitHit()]);
   });
 
-  it("limitHitsが93件を超える場合は拒否する(上限)", () => {
+  it("provider違いのlimitHitsを複数件受理する", () => {
+    const payload = {
+      adapterVersion: "1.0.0",
+      clientVersion: "0.1.0",
+      sourceId: VALID_SOURCE_ID,
+      os: "macos",
+      days: [validDay()],
+      limitHits: [validLimitHit(), { ...validLimitHit(), provider: "openai" as const }],
+    };
+    const result = submissionSchema.parse(payload);
+    expect(result.limitHits).toHaveLength(2);
+  });
+
+  it("limitHitsが93件を超える場合は拒否する(上限、provider毎ではなく全体)", () => {
     const limitHits = Array.from({ length: 94 }, (_, i) => ({
       date: `2026-01-${String((i % 28) + 1).padStart(2, "0")}`,
+      provider: "anthropic" as const,
       count: 1,
     }));
     const payload = {

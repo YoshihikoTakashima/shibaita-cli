@@ -21,6 +21,8 @@ describe("parseLogContent", () => {
 
     const entry = entries[0]!;
     expect(entry.key).toBe("msg-normal-1:req-normal-1");
+    expect(entry.provider).toBe("anthropic");
+    expect(entry.product).toBe("claude-code");
     expect(entry.model).toBe("claude-opus-4");
     expect(entry.inputTokens).toBe(100);
     expect(entry.outputTokens).toBe(50);
@@ -110,7 +112,7 @@ describe("レート制限ヒット検出(error.rateLimits)", () => {
     const { rateLimitHits } = parseLogContent(content);
 
     for (const hit of rateLimitHits) {
-      expect(Object.keys(hit).sort()).toEqual(["key", "timestamp"]);
+      expect(Object.keys(hit).sort()).toEqual(["key", "provider", "timestamp"]);
     }
   });
 

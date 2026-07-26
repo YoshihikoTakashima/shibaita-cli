@@ -1,5 +1,6 @@
 import pc from "picocolors";
-import { aggregateUsage, discoverLogFiles, parseLogFiles } from "@shibaita/core";
+import { aggregateUsage } from "@shibaita/core";
+import { collectAllUsage } from "../collect-usage.js";
 import { renderDailyTable, renderModelTotals } from "../render.js";
 
 export interface InspectOptions {
@@ -26,8 +27,7 @@ export function parseInspectArgs(args: string[]): InspectOptions {
 export async function runInspect(args: string[]): Promise<void> {
   const options = parseInspectArgs(args);
 
-  const files = await discoverLogFiles();
-  const { entries, skippedLines } = await parseLogFiles(files);
+  const { entries, skippedLines } = await collectAllUsage();
   const daily = aggregateUsage(entries, { days: options.days });
 
   console.log(pc.bold(`直近${options.days}日の日別集計`));

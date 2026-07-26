@@ -1,11 +1,17 @@
 import { z } from "zod";
 
-/** 送信JSONの1日×1モデル分。公開契約(サーバと共有)。 */
+/** 送信元プロバイダ。アダプタ追加時はここに追加する(現状: Claude Code / Codex)。 */
+export const providerSchema = z.enum(["anthropic", "openai"]);
+
+/** 送信元プロダクト。アダプタ追加時はここに追加する(現状: Claude Code / Codex)。 */
+export const productSchema = z.enum(["claude-code", "codex"]);
+
+/** 送信JSONの1日×1provider×1product×1モデル分。公開契約(サーバと共有)。 */
 export const dayUsageSchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-    provider: z.literal("anthropic"),
-    product: z.literal("claude-code"),
+    provider: providerSchema,
+    product: productSchema,
     model: z.string().min(1).max(100),
     inputTokens: z.number().int().nonnegative(),
     outputTokens: z.number().int().nonnegative(),
@@ -17,12 +23,14 @@ export const dayUsageSchema = z
   .strict();
 
 /**
- * レート制限ヒットの日別件数(表示なし・将来用)。rateLimitsフィールドの中身の値は
- * 一切含まない・保持しない。含めるのは日付と検出件数のみ。
+ * レート制限ヒットの日別×provider別件数(表示なし・将来用)。rateLimitsフィールドの中身の値は
+ * 一切含まない・保持しない。含めるのは日付・provider・検出件数のみ。
+ * (上限93件はprovider毎ではなく全体の件数のまま: submissionSchemaのlimitHits配列全体に適用)
  */
 export const limitHitSchema = z
   .object({
     date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
+    provider: providerSchema,
     count: z.number().int().nonnegative(),
   })
   .strict();
@@ -42,6 +50,8 @@ export const submissionSchema = z
   })
   .strict();
 
+export type Provider = z.infer<typeof providerSchema>;
+export type Product = z.infer<typeof productSchema>;
 export type DayUsagePayload = z.infer<typeof dayUsageSchema>;
 export type LimitHitPayload = z.infer<typeof limitHitSchema>;
 export type SubmissionPayload = z.infer<typeof submissionSchema>;

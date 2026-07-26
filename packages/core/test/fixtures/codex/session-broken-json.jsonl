@@ -1,0 +1,4 @@
+{"timestamp":"2026-06-04T00:00:00.000Z","type":"session_meta","payload":{"session_id":"sess-codex-broken-1","id":"sess-codex-broken-1","cwd":"/work","originator":"codex_exec"}}
+{"timestamp":"2026-06-04T00:00:01.000Z","type":"turn_context","payload":{"turn_id":"turn-1","model":"gpt-5.5"}}
+{not valid json,,,
+{"timestamp":"2026-06-04T00:01:00.000Z","type":"event_msg","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":42,"cached_input_tokens":2,"output_tokens":8,"reasoning_output_tokens":0,"total_tokens":50},"last_token_usage":{"input_tokens":42,"cached_input_tokens":2,"output_tokens":8,"reasoning_output_tokens":0,"total_tokens":50},"model_context_window":258400},"rate_limits":{"limit_id":"codex","primary":{"used_percent":1.0,"window_minutes":300,"resets_at":1783069051},"secondary":{"used_percent":1.0,"window_minutes":10080,"resets_at":1783393041},"plan_type":"plus","rate_limit_reached_type":null}}}

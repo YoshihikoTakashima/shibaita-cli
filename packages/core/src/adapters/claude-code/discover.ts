@@ -1,6 +1,6 @@
-import { readdir } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { walkJsonlFiles } from "../common/walk.js";
 
 /**
  * Claude Code のログJSONLファイルを探索する。
@@ -11,7 +11,7 @@ import { join } from "node:path";
  * 3. ~/.claude/transcripts/**\/*.jsonl (ディレクトリが存在すれば)
  * 4. ~/.config/claude/projects/**\/*.jsonl (後方互換)
  *
- * 再帰探索は fs.readdir 再帰(globライブラリ不使用)。シンボリックリンクは辿らない。
+ * 再帰探索は fs.readdir 再帰(globライブラリ不使用、common/walk.ts で共有)。シンボリックリンクは辿らない。
  */
 export async function discoverLogFiles(env: NodeJS.ProcessEnv = process.env): Promise<string[]> {
   const roots: string[] = [];
@@ -37,34 +37,4 @@ export async function discoverLogFiles(env: NodeJS.ProcessEnv = process.env): Pr
     for (const f of files) found.add(f);
   }
   return Array.from(found);
-}
-
-/** 指定ディレクトリ配下の *.jsonl を再帰的に探索する。シンボリックリンクは辿らない。 */
-async function walkJsonlFiles(root: string): Promise<string[]> {
-  const results: string[] = [];
-
-  async function walk(dir: string): Promise<void> {
-    let entries;
-    try {
-      entries = await readdir(dir, { withFileTypes: true });
-    } catch {
-      // ディレクトリが存在しない/読めない場合は無視(存在するものだけ探索)
-      return;
-    }
-
-    for (const entry of entries) {
-      // シンボリックリンクは辿らない
-      if (entry.isSymbolicLink()) continue;
-
-      const fullPath = join(dir, entry.name);
-      if (entry.isDirectory()) {
-        await walk(fullPath);
-      } else if (entry.isFile() && entry.name.endsWith(".jsonl")) {
-        results.push(fullPath);
-      }
-    }
-  }
-
-  await walk(root);
-  return results;
 }

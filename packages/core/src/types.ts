@@ -1,10 +1,19 @@
 /**
- * Claude Code のログJSONLから抽出した1メッセージ分の利用量エントリ。
- * dedup(同一key複数行のフィールド別maxマージ)後の形。
+ * アダプタ(Claude Code / Codex等)のログJSONLから抽出した1メッセージ(またはセッション)分の
+ * 利用量エントリ。dedup(同一key複数行のフィールド別maxマージ)後の形。
  */
 export interface UsageEntry {
-  /** message.id + ":" + requestId (requestId欠落時はmessage.id、message.id欠落時は行のuuid) */
+  /**
+   * アダプタ内で一意なkey。
+   * Claude Code: message.id + ":" + requestId (requestId欠落時はmessage.id、message.id欠落時は行のuuid)
+   * Codex: セッションファイル識別子 + ":" + model
+   * 複数アダプタを横断してマージする際は provider プレフィックス付きの内部キーで衝突を防ぐ(merge.ts参照)。
+   */
   key: string;
+  /** 送信元プロバイダ("anthropic" | "openai" 等。schema側でenum検証する) */
+  provider: string;
+  /** 送信元プロダクト("claude-code" | "codex" 等。schema側でenum検証する) */
+  product: string;
   model: string;
   /** ISO文字列由来のDate。同一keyの複数行では最初に見たものを保持する */
   timestamp: Date;
@@ -15,10 +24,12 @@ export interface UsageEntry {
   requestId?: string;
 }
 
-/** 日別×モデル別の集計結果 */
+/** 日別×provider×product×モデル別の集計結果 */
 export interface DailyUsage {
   /** YYYY-MM-DD (ローカルTZ) */
   date: string;
+  provider: string;
+  product: string;
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -37,14 +48,17 @@ export interface DailyUsage {
 export interface RateLimitHit {
   /** dedupキー: 行のuuid。なければ検出行(トリム済み生テキスト)そのもの */
   key: string;
+  /** 送信元プロバイダ("anthropic" | "openai" 等) */
+  provider: string;
   /** ISO文字列由来のDate。日別集計の基準(行のtimestampが無い/不正な行はそもそも検出しない) */
   timestamp: Date;
 }
 
-/** 日別のレート制限ヒット件数集計結果 */
+/** 日別×provider別のレート制限ヒット件数集計結果 */
 export interface DailyLimitHits {
   /** YYYY-MM-DD (ローカルTZ) */
   date: string;
+  provider: string;
   count: number;
 }
 

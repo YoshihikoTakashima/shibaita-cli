@@ -1,5 +1,9 @@
 import { readFile } from "node:fs/promises";
+import { mergeEntry, mergeRateLimitHits } from "../../merge.js";
 import type { ParseResult, RateLimitHit, UsageEntry } from "../../types.js";
+
+const PROVIDER = "anthropic";
+const PRODUCT = "claude-code";
 
 interface RawUsage {
   input_tokens?: unknown;
@@ -65,6 +69,8 @@ function parseLine(raw: RawLine): UsageEntry | null {
 
   return {
     key,
+    provider: PROVIDER,
+    product: PRODUCT,
     model,
     timestamp,
     inputTokens: toNonNegativeNumber(usage.input_tokens),
@@ -93,7 +99,7 @@ function detectRateLimitHit(raw: RawLine, rawLineText: string): RateLimitHit | n
 
   const key = typeof raw.uuid === "string" ? raw.uuid : rawLineText;
 
-  return { key, timestamp };
+  return { key, provider: PROVIDER, timestamp };
 }
 
 /**
@@ -149,7 +155,7 @@ export function parseLogContent(content: string): ParseResult {
  */
 export async function parseLogFiles(filePaths: string[]): Promise<ParseResult> {
   const merged = new Map<string, UsageEntry>();
-  const rateLimitHitsByKey = new Map<string, RateLimitHit>();
+  let rateLimitHits: RateLimitHit[] = [];
   let skippedLines = 0;
 
   for (const filePath of filePaths) {
@@ -160,36 +166,12 @@ export async function parseLogFiles(filePaths: string[]): Promise<ParseResult> {
       mergeEntry(merged, entry);
     }
 
-    for (const hit of result.rateLimitHits) {
-      if (!rateLimitHitsByKey.has(hit.key)) {
-        rateLimitHitsByKey.set(hit.key, hit);
-      }
-    }
+    rateLimitHits = mergeRateLimitHits([...rateLimitHits, ...result.rateLimitHits]);
   }
 
   return {
     entries: Array.from(merged.values()),
     skippedLines,
-    rateLimitHits: Array.from(rateLimitHitsByKey.values()),
+    rateLimitHits,
   };
-}
-
-/** dedupマージ本体: 同一keyのエントリをフィールドごとにmaxで統合する。timestampは最初に見たものを保持。 */
-export function mergeEntry(map: Map<string, UsageEntry>, entry: UsageEntry): void {
-  const existing = map.get(entry.key);
-  if (!existing) {
-    map.set(entry.key, entry);
-    return;
-  }
-
-  map.set(entry.key, {
-    key: existing.key,
-    model: existing.model,
-    timestamp: existing.timestamp, // 最初に見たものを保持
-    inputTokens: Math.max(existing.inputTokens, entry.inputTokens),
-    outputTokens: Math.max(existing.outputTokens, entry.outputTokens),
-    cacheReadTokens: Math.max(existing.cacheReadTokens, entry.cacheReadTokens),
-    cacheCreationTokens: Math.max(existing.cacheCreationTokens, entry.cacheCreationTokens),
-    requestId: existing.requestId ?? entry.requestId,
-  });
 }
