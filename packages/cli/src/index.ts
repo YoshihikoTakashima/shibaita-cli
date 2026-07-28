@@ -8,6 +8,7 @@ import { runPair } from "./commands/pair.js";
 import { runSubmit } from "./commands/submit.js";
 import { runLogout } from "./commands/logout.js";
 import { runInstallSkill } from "./commands/install-skill.js";
+import { reportTopLevelError } from "./error-report.js";
 import { renderBarChart } from "./render.js";
 
 function currentMonthDays(): number {
@@ -102,7 +103,7 @@ async function main(): Promise<void> {
 
     process.exitCode = exitCode;
   } catch (error) {
-    console.error(pc.red(`エラーが発生しました: ${(error as Error).message}`));
+    reportTopLevelError(error);
     process.exitCode = 1;
   }
 }

@@ -2,6 +2,21 @@ import pc from "picocolors";
 import type { DailyUsage } from "@shibaita/core";
 import { totalTokens } from "@shibaita/core";
 
+/**
+ * 幅・繰り返し数計算の共通ガード。
+ *
+ * `String.prototype.padStart/padEnd/repeat` に非有限値(NaN/Infinity)や
+ * 異常に大きい値を直接渡すと `RangeError: Invalid string length` を投げる
+ * (例: `"x".padStart(Infinity)`)。0除算や `Math.max()` の初期値ミスなどにより
+ * 幅計算がNaN/Infinityになるケースに備え、表示系の幅計算は必ずこのガードを
+ * 通してから使う。非有限値・負値は0扱い、上限(既定200)でクランプする。
+ */
+export function clampWidth(width: number, max = 200): number {
+  if (!Number.isFinite(width)) return 0;
+  if (width < 0) return 0;
+  return Math.min(width, max);
+}
+
 /** トークン数を桁区切りの読みやすい文字列にする(例: 1234567 -> "1,234,567") */
 export function formatNumber(n: number): string {
   return n.toLocaleString("en-US");
@@ -22,13 +37,18 @@ export function renderBarChart(daily: DailyUsage[], days: number): string {
   const byDate = sumByDate(daily);
   const dates = buildRecentDates(days);
 
-  const max = Math.max(1, ...dates.map((d) => byDate.get(d) ?? 0));
+  const rawMax = Math.max(1, ...dates.map((d) => byDate.get(d) ?? 0));
+  // maxが非有限(値にNaN/Infinityが混入した場合)でもrepeat/クランプ計算が壊れないようにする。
+  const max = Number.isFinite(rawMax) && rawMax > 0 ? rawMax : 1;
   const barWidth = 30;
 
   const lines = dates.map((date) => {
     const value = byDate.get(date) ?? 0;
-    const filled = value === 0 ? 0 : Math.max(1, Math.round((value / max) * barWidth));
-    const bar = pc.cyan("#".repeat(filled)) + " ".repeat(Math.max(0, barWidth - filled));
+    const ratio = value === 0 ? 0 : value / max;
+    const rawFilled = value === 0 ? 0 : Math.max(1, Math.round(ratio * barWidth));
+    // filledは常にbarWidth以下のはずだが、valueが非有限(NaN等)な場合の保険としてクランプする。
+    const filled = clampWidth(rawFilled, barWidth);
+    const bar = pc.cyan("#".repeat(filled)) + " ".repeat(clampWidth(barWidth - filled, barWidth));
     return `${date}  ${bar}  ${formatNumber(value)}`;
   });
 
@@ -105,11 +125,13 @@ export function renderModelTotals(daily: DailyUsage[]): string {
 }
 
 function pad(s: string, width: number): string {
-  if (s.length >= width) return s.slice(0, width);
-  return s + " ".repeat(width - s.length);
+  const w = clampWidth(width);
+  if (s.length >= w) return s.slice(0, w);
+  return s + " ".repeat(w - s.length);
 }
 
 function padNum(s: string, width: number): string {
-  if (s.length >= width) return s;
-  return " ".repeat(width - s.length) + s;
+  const w = clampWidth(width);
+  if (s.length >= w) return s;
+  return " ".repeat(w - s.length) + s;
 }

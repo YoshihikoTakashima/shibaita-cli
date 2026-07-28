@@ -1,6 +1,13 @@
 import { readFile } from "node:fs/promises";
 import { mergeEntry, mergeRateLimitHits } from "../../merge.js";
 import type { ParseResult, RateLimitHit, UsageEntry } from "../../types.js";
+import { isLargeFile } from "../common/large-file.js";
+import type { LargeFileCheckOptions } from "../common/large-file.js";
+import { readJsonlLines } from "../common/jsonl-lines.js";
+import type { JsonlLineReadOptions } from "../common/jsonl-lines.js";
+
+/** 巨大ファイル判定(ファイル全体サイズ)と行ストリーム読み(1行の最大長)、両方のテスト注入オプション */
+export type ParseFileOptions = LargeFileCheckOptions & JsonlLineReadOptions;
 
 const PROVIDER = "anthropic";
 const PRODUCT = "claude-code";
@@ -103,12 +110,38 @@ function detectRateLimitHit(raw: RawLine, rawLineText: string): RateLimitHit | n
 }
 
 /**
- * 単一ファイルをパースする。JSONL 1行ずつ処理(ファイル全体を1文字列で読んでsplitする。ただし1行ずつtry/catch)。
- * このファイル単体のdedupは行わない(dedupは呼び出し側で全ファイル横断して行う)。
+ * 1行分(トリム済み・空行ではない)をパースし、entries/rateLimitHitsに追記する。
+ * skipした場合(壊れたJSON、または採用条件を満たさないassistant行)は true を返す。
+ * 文字列一括読み込み経路(parseLogContent)・行ストリーム読み経路(parseLogFileStreaming)の
+ * 両方から共有する(ロジックの二重管理を避ける)。
  */
-export async function parseLogFile(filePath: string): Promise<ParseResult> {
-  const content = await readFile(filePath, "utf-8");
-  return parseLogContent(content);
+function processTrimmedLine(
+  trimmed: string,
+  entries: UsageEntry[],
+  rateLimitHits: RateLimitHit[],
+): boolean {
+  try {
+    const raw = JSON.parse(trimmed) as RawLine;
+
+    // usage集計とレート制限ヒット検出は同じスキャン(この1行のパース結果)で一緒に処理する(2度読みしない)。
+    const rateLimitHit = detectRateLimitHit(raw, trimmed);
+    if (rateLimitHit) {
+      rateLimitHits.push(rateLimitHit);
+    }
+
+    if (raw.type === "assistant") {
+      const entry = parseLine(raw);
+      if (entry) {
+        entries.push(entry);
+        return false;
+      }
+      return true;
+    }
+    // type !== "assistant" の行は無視(スキップカウントしない)
+    return false;
+  } catch {
+    return true;
+  }
 }
 
 /** テスト用に文字列から直接パースする */
@@ -121,31 +154,62 @@ export function parseLogContent(content: string): ParseResult {
   for (const line of lines) {
     const trimmed = line.trim();
     if (trimmed.length === 0) continue;
-
-    try {
-      const raw = JSON.parse(trimmed) as RawLine;
-
-      // usage集計とレート制限ヒット検出は同じスキャン(この1行のパース結果)で一緒に処理する(2度読みしない)。
-      const rateLimitHit = detectRateLimitHit(raw, trimmed);
-      if (rateLimitHit) {
-        rateLimitHits.push(rateLimitHit);
-      }
-
-      if (raw.type === "assistant") {
-        const entry = parseLine(raw);
-        if (entry) {
-          entries.push(entry);
-        } else {
-          skippedLines += 1;
-        }
-      }
-      // type !== "assistant" の行は無視(スキップカウントしない)
-    } catch {
-      skippedLines += 1;
-    }
+    if (processTrimmedLine(trimmed, entries, rateLimitHits)) skippedLines += 1;
   }
 
   return { entries, skippedLines, rateLimitHits };
+}
+
+/**
+ * ファイル全体を1文字列で読み込まず、行ストリーム(共有の readJsonlLines)で処理する。
+ * 巨大ファイル(目安256MB超)で `readFile(path, "utf-8")` が
+ * `RangeError: Invalid string length` を投げるのを避けるための経路。
+ * 1行ずつ独立して処理する(Claude Codeのusageエントリは行ごとに完結しており、
+ * ファイル内で累積状態を保持する必要が無いため、ストリーム化してもdedup前の結果は変わらない)。
+ * さらに、1行自体が異常に長い(例: 数百MB)場合に備え、readJsonlLines側で行長上限
+ * (既定64MB)を超える行は本文を保持せず破棄する(skippedLinesに計上する)。
+ */
+async function parseLogFileStreaming(
+  filePath: string,
+  options: JsonlLineReadOptions,
+): Promise<ParseResult> {
+  const entries: UsageEntry[] = [];
+  const rateLimitHits: RateLimitHit[] = [];
+  let skippedLines = 0;
+
+  for await (const event of readJsonlLines(filePath, options)) {
+    if (event.kind === "oversized") {
+      skippedLines += 1;
+      continue;
+    }
+
+    const trimmed = event.line.trim();
+    if (trimmed.length === 0) continue;
+    if (processTrimmedLine(trimmed, entries, rateLimitHits)) skippedLines += 1;
+  }
+
+  return { entries, skippedLines, rateLimitHits };
+}
+
+/**
+ * 単一ファイルをパースする。JSONL 1行ずつ処理する。
+ * このファイル単体のdedupは行わない(dedupは呼び出し側で全ファイル横断して行う)。
+ *
+ * ファイルサイズが閾値(既定256MB、`options.largeFileThresholdBytes`で注入可能)を超える場合は
+ * 行ストリーム読みに切り替え、`readFile(path, "utf-8")` の一括読み込みによる
+ * `RangeError: Invalid string length` を回避する。閾値以下の通常サイズのファイルは
+ * 従来通り一括読み込みのままにし、挙動・パフォーマンスへの影響を最小化する。
+ */
+export async function parseLogFile(
+  filePath: string,
+  options: ParseFileOptions = {},
+): Promise<ParseResult> {
+  if (await isLargeFile(filePath, options)) {
+    return parseLogFileStreaming(filePath, options);
+  }
+
+  const content = await readFile(filePath, "utf-8");
+  return parseLogContent(content);
 }
 
 /**
@@ -153,13 +217,16 @@ export function parseLogContent(content: string): ParseResult {
  * - usageエントリ: 同一keyはフィールドごとにmaxマージ、timestampは最初に見たものを保持する。
  * - レート制限ヒット: 同一key(行のuuid、なければ検出行そのまま)は最初に見たものだけを1件として数える。
  */
-export async function parseLogFiles(filePaths: string[]): Promise<ParseResult> {
+export async function parseLogFiles(
+  filePaths: string[],
+  options: ParseFileOptions = {},
+): Promise<ParseResult> {
   const merged = new Map<string, UsageEntry>();
   let rateLimitHits: RateLimitHit[] = [];
   let skippedLines = 0;
 
   for (const filePath of filePaths) {
-    const result = await parseLogFile(filePath);
+    const result = await parseLogFile(filePath, options);
     skippedLines += result.skippedLines;
 
     for (const entry of result.entries) {
