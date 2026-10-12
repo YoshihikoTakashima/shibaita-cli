@@ -45,7 +45,6 @@
   },
   "devDependencies": {
     "@shibaita/core": "*",
-    "@shibaita/schema": "*",
-    "tsup": "^8.5.1"
+    "@shibaita/schema": "*"
   }
 }

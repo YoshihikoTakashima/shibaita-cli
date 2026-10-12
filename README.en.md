@@ -104,12 +104,16 @@ cli/
 
 ## Development
 
+Use Node.js 20.x, 22.x, or 24 and newer for development and tests (required by Vitest 4). The published CLI still requires Node.js 18 or newer.
+
 ```bash
 npm install
-npm test
 npm run typecheck
+npm test
 npx tsx packages/cli/src/index.ts inspect
 ```
+
+Type checking also generates the workspace `dist` files, so run it before the first test run. The `tsup` override pins `esbuild` to 0.28.1, which fixes the Windows development-server file-read vulnerability.
 
 ## Security & audit-related documents
 
