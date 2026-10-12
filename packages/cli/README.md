@@ -98,12 +98,16 @@ cli/
 
 ## 開発
 
+開発・テストには Node.js 20.x、22.x、または 24 以降を使用してください(Vitest 4 の要件)。公開 CLI の実行要件は Node.js 18 以上です。
+
 ```bash
 npm install
-npm test
 npm run typecheck
+npm test
 npx tsx packages/cli/src/index.ts inspect
 ```
+
+型チェックはワークスペースの `dist` も生成するため、初回のテスト前に実行します。`tsup` の `esbuild` は Windows 開発サーバのファイル読み取り問題を修正した 0.28.1 に固定しています。
 
 ## セキュリティ・監査関連ドキュメント
 
